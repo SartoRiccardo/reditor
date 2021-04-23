@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Orelega+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap');
+
+/* ROOT STRETCH */
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: 'Heebo', sans-serif;
+}
+
+body {
+  display: flex;
+  flex-flow: column;
+}
+
+#root {
+  background-color: white;
+  flex: 1 1 auto;
+  overflow: hidden;
+  background-color: var(--gray-lighten-5);
+}
+
+/* END ROOT STRETCH */
+
+h1, h2, h3, h4, h5, h6, .orelega {
+  font-family: 'Orelega One', cursive;
+}
+
+h1, h2, h3, h4, h5, h6, p, li {
+  user-select: none;
+}
+
+#root {
+  display: flex;
+}
+
+.app, nav {
+  height: 100%;
+  overflow: scroll;
+}
+
+.app {
+  width: 100%;
+}
+
+.center-transform { position: relative }
+.h-100 { height: 100% }
+.center-transform div {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+img, .input-group {
+  user-select: none;
+}
+
+/* START IMAGE */
+
+.cutter {
+  background-color: #c9c9c9;
+  padding: 24px;
+  position: relative;
+  /* max-height: 600px; */
+}
+
+.cutter img {
+  width: 100%;
+}
+
+.cutter .overlay {
+  cursor: cell;
+  position: absolute;
+  top: 0; bottom: 0; left: 0; right: 0;
+}
+
+#user-selection:not(.active) {
+  display: none;
+}
+
+#user-selection {
+  position: absolute;
+  border: 4px dashed green;
+  outline-offset: 4px;
+}
+
+.p-relative {
+  position: relative;
+}
+
+/* END IMAGE */
+
+.round-btn {
+  padding: 1.5rem;
+  background-color: var(--gray-lighten-2);
+  border-radius: 100rem;
+  display: inline-block;
+  cursor: pointer;
+  transition: background-color .2s ease-out;
+}
+
+.round-btn:hover {
+  padding: 1.75rem;
+  background-color: var(--gray-lighten-1);
+  transition: background-color .2s ease-out;
+}
+
+.round-btn.left  svg { position: relative; left: -3px; }
+
+.button {
+  border-radius: .25rem;
+  display: inline-block;
+  border-width: 1px;
+  border-style: solid;
+  padding: .75rem 1rem;
+  background-color: #e9ecef;
+  border-color: #ced4da;
+  cursor: pointer;
+}

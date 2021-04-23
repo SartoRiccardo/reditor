@@ -1,0 +1,77 @@
+
+.main-menu {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.main-menu > div.menu-container {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  height: 90%;
+  padding: 3rem 2rem;
+  width: 33%;
+  max-width: 350px;
+  min-width: 275px;
+  background-color: var(--blue-darken-4);
+  border: 3px solid var(--indigo-darken-4);
+  border-radius: 4px;
+}
+
+.main-menu ul {
+  padding: 0;
+  margin: 0;
+}
+
+.main-menu li svg, .main-menu li .svg-container {
+  margin-left: auto;
+  fill: var(--red-darken-1);
+}
+
+.main-menu li svg:hover {
+  fill: var(--red-darken-4);
+}
+
+.main-menu li {
+  cursor: pointer;
+  list-style-type: none;
+  display: flex;
+  margin: .25rem 0;
+  padding: .35rem;
+  text-align: center;
+  background-color: var(--cyan-lighten-4);
+  border: 3px solid var(--cyan-darken-1);
+  border-radius: 4px;
+}
+
+.main-menu .overlay {
+  background-color: #0003;
+}
+
+.main-menu .overlay h1 {
+  color: white;
+  text-align: center;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.main-menu form.create-file {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 50%;
+  padding: 2rem;
+  padding-bottom: 3rem;
+  background-color: var(--blue-darken-4);
+  border: 3px solid var(--indigo-darken-4);
+  border-radius: 4px;
+}

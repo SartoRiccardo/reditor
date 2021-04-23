@@ -1,0 +1,145 @@
+nav {
+  background-color: var(--blue-darken-4);
+  width: 25%;
+  max-width: 275px;
+  min-width: 250px;
+  display: flex;
+  flex-flow: column;
+}
+
+nav p {
+  color: white;
+}
+
+nav ul {
+  padding: 0 1rem;
+  margin: 0;
+}
+
+nav li {
+  cursor: pointer;
+  list-style-type: none;
+  display: flex;
+  margin: .25rem 0;
+  padding: .35rem;
+  border-radius: 4px;
+  border-style: solid;
+  border-width: 3px;
+}
+
+nav li svg, nav li .svg-container {
+  height: 1.5rem;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  margin-left: auto;
+}
+
+nav li.preset {
+  background-color: var(--yellow-lighten-4);
+  border-color: var(--yellow-darken-1);
+  fill: var(--yellow-darken-2);
+  margin-top: 1.5rem;
+  cursor: not-allowed;
+}
+
+nav li.soundtrack {
+  background-color: var(--purple-lighten-4);
+  border-color: var(--purple-lighten-1);
+  fill: var(--purple-lighten-1);
+  margin-bottom: 1.5rem;
+}
+
+nav li.scene {
+  background-color: var(--cyan-lighten-4);
+  border-color: var(--cyan-darken-1);
+  fill: var(--cyan-darken-1);
+}
+
+nav li.transition svg:hover {
+  cursor: pointer;
+  fill: var(--red-darken-4);
+}
+nav li.transition {
+  background-color: var(--orange-lighten-4);
+  border-color: var(--orange-darken-1);
+  fill: var(--orange-darken-1);
+  margin-top: 1.5rem;
+  cursor: grab;
+}
+
+nav li.active {
+  background-color: var(--green-lighten-2);
+  border-color: var(--green-darken-3);
+  fill: var(--green-darken-3); /*var(--red-darken-2);*/
+  font-weight: bold;
+  cursor: default;
+}
+nav li.active svg:hover {
+  fill: var(--red-darken-4);
+  cursor: pointer;
+}
+
+nav .add-parts {
+  display: flex;
+}
+
+nav .add-parts span {
+  margin: .25rem 0;
+  padding: .35rem;
+  cursor: pointer;
+}
+
+nav .add-parts .scene {
+  background-color: var(--cyan-lighten-4);
+  border: 3px solid var(--cyan-darken-1);
+  fill: var(--cyan-darken-1);
+  border-radius: 4px;
+}
+
+nav .add-parts .transition {
+  margin-left: .5rem;
+  background-color: var(--orange-lighten-4);
+  border: 3px solid var(--orange-darken-1);
+  fill: var(--orange-darken-1);
+  border-radius: 4px;
+}
+
+nav .add-parts .export {
+  margin-left: auto;
+  background-color: var(--green-lighten-2);
+  border: 3px solid var(--green-darken-3);
+  fill: var(--green-darken-3);
+  border-radius: 4px;
+  padding: .35rem .75rem;
+  user-select: none;
+}
+
+.sticky-options {
+  border-top: 3px solid var(--indingo-darken-4);
+  position: sticky;
+  bottom: 0;
+  padding: 1.5rem 1rem;
+  background-color: var(--blue-darken-4);
+  margin-top: 3rem;
+  margin-top: auto;
+}
+
+.main-nav {
+  margin-bottom: 3rem;
+}
+
+.drop-transition {
+  width: 100%;
+  height: 2px;
+  margin: .5rem 0;
+  background-color: var(--orange-lighten-4);
+  border-color: var(--orange-darken-1);
+}
+
+.drop-transition:hover {
+  width: 100%;
+}
+
+.song-duration {
+  color: var(--gray-darken-2);
+}
