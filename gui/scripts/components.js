@@ -247,7 +247,7 @@ class Scene extends React.Component {
     this.setState({ selectionCoords: { x: x, y: y , w: Math.abs(width), h: Math.abs(height) } });
   }
 
-  selectionEnd = evt => {
+  selectionEnd = async evt => {
     const { scene, page, x, y, selecting, selectionActive  } = this.state;
 
     evt = evt.nativeEvent;
@@ -281,7 +281,7 @@ class Scene extends React.Component {
           ...scene.script[page],
           crop: coords,
         }
-        if(changeSceneInfo(scene.number, page, newPart)) {
+        if(await changeSceneInfo(scene.number, page, newPart)) {
           let newScript = [ ...scene.script ];
           newScript[page] = newPart;
           newState = {
@@ -301,7 +301,7 @@ class Scene extends React.Component {
 
   abortSelection = () => this.setState({ selecting: false });
 
-  change = evt => {
+  change = async evt => {
     const { page, scene } = this.state;
     const currentChangeCall = Math.random();
     this.lastChangeCall = currentChangeCall;
@@ -309,7 +309,7 @@ class Scene extends React.Component {
     const { text, voice, wait } = this.state;
     const newValue = evt.target.value;
 
-    const updateData = () => {
+    const updateData = async () => {
       if(currentChangeCall !== this.lastChangeCall) return;
       this.onChangePart = null;
 
@@ -317,7 +317,7 @@ class Scene extends React.Component {
         crop: this.state.selectionCoords, text, voice, wait,
         [evt.target.name]: newValue,
       };
-      changeSceneInfo(scene.number, page, newPart);
+      await changeSceneInfo(scene.number, page, newPart);
 
       if(!this.unmounted) {
         const newScript = [ ...this.state.scene.script ];
@@ -377,18 +377,18 @@ class Scene extends React.Component {
     }));
   }
 
-  selectImage = () => {
-    const image = getImageFromFile(this.state.scene.number);
+  selectImage = async () => {
+    const image = await getImageFromFile(this.state.scene.number);
     this.setState({
       scene: { ...this.state.scene, image },
     });
   }
 
-  deletePart = () => {
+  deletePart = async () => {
     const newScript = this.state.scene.script.filter((s, i) => i !== this.state.page);
     const part = newScript[0];
 
-    deleteScriptPart(this.state.scene.number, this.state.page);
+    await deleteScriptPart(this.state.scene.number, this.state.page);
     this.setState({
       text: part.text,
       voice: part.voice,
@@ -532,15 +532,18 @@ class Editor extends React.Component {
 
   componentDidMount() {
     const { fileId } = this.props;
-    this.setState({ fileInfo: getFileInfo(fileId) });
+    const tempFunc = async () => {
+      this.setState({ fileInfo: await getFileInfo(fileId) });
+    }
+    tempFunc();
   }
 
-  getScene = number => {
-    this.setState({ scene: getSceneInfo(number) });
+  getScene = async number => {
+    this.setState({ scene: await getSceneInfo(number) });
   }
 
-  selectSoundtrack = number => {
-    let soundtrack = getSoundtrackFromFile();
+  selectSoundtrack = async number => {
+    let soundtrack = await getSoundtrackFromFile();
 
     let match = 0;
     let script = this.state.fileInfo.script;
@@ -563,8 +566,8 @@ class Editor extends React.Component {
     }
   }
 
-  addScene = () => {
-    const newScenes = addToScript("scene");
+  addScene = async () => {
+    const newScenes = await addToScript("scene");
 
     this.setState({
       fileInfo: {
@@ -577,8 +580,8 @@ class Editor extends React.Component {
     });
   }
 
-  addTransition = () => {
-    const newScenes = addToScript(["transition", "soundtrack"]);
+  addTransition = async () => {
+    const newScenes = await addToScript(["transition", "soundtrack"]);
 
     this.setState({
       fileInfo: {
@@ -591,8 +594,8 @@ class Editor extends React.Component {
     });
   }
 
-  deleteScene = index => {
-    deleteScene(index);
+  deleteScene = async index => {
+    await deleteScene(index);
 
     this.setState(prevState => {
       const newScript = prevState.fileInfo.script.filter((_, i) => index !== i);
@@ -606,8 +609,8 @@ class Editor extends React.Component {
     });
   }
 
-  switchOrder = (startI, endI) => {
-    relocateItem(startI, endI);
+  switchOrder = async (startI, endI) => {
+    await relocateItem(startI, endI);
     this.setState(prevState => {
       let script = [ ...prevState.fileInfo.script ];
       const scene = script[startI];
@@ -736,13 +739,14 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    this.setState({ files: getFiles() });
+    const asFun = async () =>  this.setState({ files: await getFiles() });
+    asFun();
   }
 
   select = chosenFile => this.setState({ chosenFile });
 
-  makeNewFile = name => {
-    const newFile = createFile(name);
+  makeNewFile = async name => {
+    const newFile = await createFile(name);
 
     this.setState(prevState => ({
       files: [ ...prevState.files, newFile ],
@@ -750,8 +754,8 @@ class App extends React.Component {
     }));
   }
 
-  deleteFile = id => {
-    deleteFile(id);
+  deleteFile = async id => {
+    await deleteFile(id);
     this.setState(ps => ({ files: ps.files.filter((f) => id !== f.id) }));
   }
 
