@@ -23,32 +23,8 @@ async function getSceneInfo(scene) {
   return await eel.get_scene_info(scene)();
 }
 
-let sampleScript = [
-  {
-    crop: { x: 0, y: 0, w: 100, h: 16 },
-    text: "Teacher: Chill your beans, the test isn't that hard.",
-    voice: "male-1",
-    wait: 1.0,
-  },
-  {
-    crop: { x: 0, y: 0, w: 100, h: 25 },
-    text: "The test.",
-    voice: "male-1",
-    wait: 1.0,
-  },
-  {
-    crop: { x: 0, y: 0, w: 100, h: 100 },
-    text: "",
-    voice: "male-1",
-    wait: 3.0,
-  },
-];
-
 async function changeSceneInfo(scene, scriptIndex, newScript) {
   return await eel.change_scene_info(scene, scriptIndex, newScript)();
-  console.log(`Change scene info`, scene, scriptIndex, newScript);
-  // sampleScript[scriptIndex] = newScript;
-  return true;
 }
 
 async function deleteScriptPart(scene, scriptIndex) {
@@ -72,8 +48,23 @@ async function relocateItem(startI, endI) {
  * Opens a file prompt and asks for an .mp3 file.
  * @return { Soundtrack } null if no soundtrack or an invalid file was selected.
  */
-async function getSoundtrackFromFile() {
-  return { type: "soundtrack", duration: {m: 1, s: 38}, name: "Skyarrow Bridge", path: "rel/path/to/001.mp3", number: 1 };
+async function getSoundtrackFromFile(number, callback) {
+  let input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".mp3";
+  input.addEventListener("change", async evtInput => {
+    const file = evtInput.target.files[0];
+    const reader = new FileReader();
+    reader.addEventListener('load', async evtReader => {
+      const songBin = evtReader.target.result;
+      let fileName = evtReader.target.fileName || file.name;
+      const song = await eel.set_song(number, fileName, songBin)();
+      if(song)
+        callback(song);
+    });
+    reader.readAsDataURL(file);
+  })
+  input.click();
 }
 
 /**
@@ -81,8 +72,22 @@ async function getSoundtrackFromFile() {
  * @param  {int}    scene The scene number the image is for.
  * @return {string}       The selected image, encoded in b64.
  */
-async function getImageFromFile(scene) {
-  return img2;
+async function getImageFromFile(scene, onSelect) {
+  let input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".jpg, .jpeg, .png";
+  input.addEventListener("change", async evtInput => {
+    const file = evtInput.target.files[0];
+    const reader = new FileReader();
+    reader.addEventListener('load', async evtReader => {
+      const image = evtReader.target.result;
+      const success = await eel.set_image(scene, image)()
+      if(success)
+        onSelect(image);
+    });
+    reader.readAsDataURL(file);
+  })
+  input.click();
 }
 
 /**

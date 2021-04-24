@@ -378,10 +378,12 @@ class Scene extends React.Component {
   }
 
   selectImage = async () => {
-    const image = await getImageFromFile(this.state.scene.number);
-    this.setState({
-      scene: { ...this.state.scene, image },
-    });
+    await getImageFromFile(
+      this.state.scene.number,
+      image => this.setState(ps => ({
+        scene: { ...ps.scene, image },
+      }))
+    );
   }
 
   deletePart = async () => {
@@ -543,27 +545,30 @@ class Editor extends React.Component {
   }
 
   selectSoundtrack = async number => {
-    let soundtrack = await getSoundtrackFromFile();
+    const callback = soundtrack => {
+      let match = 0;
+      let script = this.state.fileInfo.script;
+      for(let i=0; i < script.length; i++) {
+        if(script[i].type === "soundtrack")
+        if(script[i].type === "soundtrack" && script[i].number === number) {
+          match = i;
+          break;
+        }
+      }
 
-    let match = 0;
-    let script = this.state.fileInfo.script;
-    for(let i=0; i < script.length; i++) {
-      if(script[i].type === "soundtrack" && script[i].number === number) {
-        match = i;
-        break;
+      if(soundtrack) {
+        let newScript = [ ...script ];
+        newScript[match] = soundtrack;
+        this.setState(ps => ({
+          fileInfo: {
+            ...ps.fileInfo,
+            script: newScript,
+          },
+        }));
       }
     }
 
-    if(soundtrack) {
-      let newScript = [ ...script ];
-      newScript[match] = soundtrack;
-      this.setState({
-        fileInfo: {
-          ...this.state.fileInfo,
-          script: newScript,
-        },
-      });
-    }
+    await getSoundtrackFromFile(number, callback);
   }
 
   addScene = async () => {

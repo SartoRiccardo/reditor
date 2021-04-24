@@ -3,6 +3,7 @@ import eel
 import csv
 import shutil
 import base64
+from mutagen.mp3 import MP3
 from pprint import pprint
 
 
@@ -26,6 +27,7 @@ EMPTY_SCRIPT = """
 """[1:-1]
 EMPTY_CONFIG = """
 next-scene-id 1
+next-soundtrack-id 2
 """[1:]
 open_file_id = None
 
@@ -96,7 +98,6 @@ def write_config(project_id, variable, newval):
         parts = ln.strip().split(" ")
         if parts[0] == variable:
             file.append(f"{variable} {newval}\n")
-            break
         else:
             file.append(ln)
     config.close()
@@ -104,6 +105,12 @@ def write_config(project_id, variable, newval):
     config = open(config_dir, "w")
     [config.write(ln) for ln in file]
     config.close()
+
+
+def get_audio_length(path):
+    audio = MP3(path)
+    length = int(audio.info.length)
+    return {"m": int(length/60), "s": length % 61}
 
 
 class ScenePart:
@@ -157,7 +164,6 @@ def get_file_info(id):
 
     components = 0
     scenes = 0
-    soundtrack_count = 0
     script = []
     for ln in fscript:
         ln = ln.strip()
@@ -165,13 +171,15 @@ def get_file_info(id):
             parts = ln.split("]")
             command = parts[0][1:]
             if command == "ost" and len(parts) > 1:
-                soundtrack_count += 1
+                parts = parts[:1] + "]".join(parts[1:]).split(";")
+                soundtrack_id = int(parts[1])
+                audio_path = ret["path"]+f"/soundtrack/{soundtrack_id:05d}.mp3"
                 script.append({
                     "type": "soundtrack",
-                    "name": "]".join(parts[1:]),
-                    "duration": {"m": 0, "s": 0},  # TODO
-                    "path": ret["path"]+f"/soundtrack/{soundtrack_count:05d}.mp3",
-                    "number": soundtrack_count,
+                    "name": parts[2:],
+                    "duration": get_audio_length(audio_path),
+                    "path": audio_path,
+                    "number": soundtrack_id,
                 })
             elif command == "transition":
                 script.append({"type": "transition"})
@@ -273,10 +281,12 @@ def add_to_script(type):
     ret = []
     for t in type:
         if t == "soundtrack":
-            to_insert = "[ost]"
+            new_ost_id = int(get_config(open_file_id, "next-soundtrack-id"))
+            to_insert = f"[ost]{new_ost_id:05d};"
             new_soundtrack = {**EMPTY_SOUNDTRACK}
-            new_soundtrack["number"] = last_soundtrack_number
+            new_soundtrack["number"] = new_ost_id
             ret.append(new_soundtrack)
+            write_config(open_file_id, "next-soundtrack-id", new_ost_id+1)
 
         elif t == "scene":
             new_scene_id = int(get_config(open_file_id, "next-scene-id"))
@@ -420,6 +430,9 @@ def delete_scene(scene_i):
             script.append(ln.strip())
         else:
             to_delete = ln
+
+        if ln.startswith("[ost]") and i == scene_i:
+            soundtrack_id = int(ln[5:].split(";")[0])
         i += 1
 
     fscript.close()
@@ -429,11 +442,75 @@ def delete_scene(scene_i):
         fscript.write(line + "\n")
     fscript.close()
 
-    if to_delete and "[" not in to_delete:
-        scene_id = int(to_delete)
-        scene_path = get_scene_dir(open_file_id, scene_id)
-        if os.path.exists(scene_path):
-            shutil.rmtree(scene_path)
+    if to_delete:
+        if "[" not in to_delete:
+            scene_id = int(to_delete)
+            scene_path = get_scene_dir(open_file_id, scene_id)
+            if os.path.exists(scene_path):
+                shutil.rmtree(scene_path)
+        elif to_delete.startswith("[ost]"):
+            ost_path = get_project_dir(open_file_id)+f"/soundtrack/{soundtrack_id:05d}.mp3"
+            if os.path.exists(ost_path):
+                os.remove(ost_path)
+
+
+@eel.expose
+def set_image(scene, image):
+    image_path = get_scene_dir(open_file_id, scene) + "/image."
+
+    config, data = image.split(",")
+    config = config.split(";")
+    ext = "png"
+    for c in config:
+        if "data:image/" in c and "jpeg" in c:
+            ext = "jpg"
+    image_path += ext
+
+    fimage = open(image_path, "wb")
+    fimage.write(base64.b64decode(data.encode("ascii")))
+    fimage.close()
+
+    return True
+
+
+@eel.expose
+def set_song(number, name, song_b64):
+    if name.endswith(".mp3"):
+        name = name[:-4]
+
+    song_path = get_project_dir(open_file_id) + f"/soundtrack/{number:05d}.mp3"
+    config, data = song_b64.split(",")
+
+    fsong = open(song_path, "wb")
+    fsong.write(base64.b64decode(data.encode("ascii")))
+    fsong.close()
+
+    script_dir = get_project_dir(open_file_id) + "/script.txt"
+    fscript = open(script_dir)
+
+    new_script = []
+    for ln in fscript:
+        if ln.startswith("[ost]"):
+            soundtrack_id = int(ln[5:].split(";")[0])
+            if number == soundtrack_id:
+                new_script.append(f"[ost]{soundtrack_id:05d};{name}\n")
+            else:
+                new_script.append(ln)
+        else:
+            new_script.append(ln)
+
+    fscript.close()
+    fscript = open(script_dir, "w")
+    [fscript.write(ln) for ln in new_script]
+    fscript.close()
+
+    return {
+        "type": "soundtrack",
+        "duration": get_audio_length(song_path),
+        "name": name,
+        "path": song_path,
+        "number": number,
+    }
 
 
 init()
