@@ -86,6 +86,13 @@ img, .input-group {
   outline-offset: 4px;
 }
 
+.previously-cropped {
+  position: absolute;
+  border: none;
+  background-color: var(--purple);
+  opacity: 0.25;
+}
+
 .p-relative {
   position: relative;
 }
@@ -118,4 +125,20 @@ img, .input-group {
   background-color: #e9ecef;
   border-color: #ced4da;
   cursor: pointer;
+}
+
+/* BOOTSTRAP OVERRIDES */
+
+.btn {
+  margin: .25rem 0;
+  padding: .35rem;
+  border-radius: 4px;
+  border-style: solid;
+  border-width: 3px;
+}
+
+.btn-primary, .btn-primary:hover, .btn-primary:active, .btn-primary:disabled {
+  border-color: var(--cyan-darken-1);
+  background-color: var(--cyan-lighten-4);
+  color: black;
 }

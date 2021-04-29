@@ -1,1 +1,9 @@
 eel
+praw
+mutagen
+moviepy
+twitter
+urllib3
+imageio
+PIL
+proglog

@@ -1,5 +1,5 @@
 import eel
-import util.io
+import util
 
 
 class Application:

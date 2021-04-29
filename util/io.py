@@ -4,7 +4,9 @@ import csv
 import shutil
 import base64
 from mutagen.mp3 import MP3
-from pprint import pprint
+import urllib3
+import util.requests
+import time
 
 
 DATA_PATH = os.path.join(
@@ -12,6 +14,10 @@ DATA_PATH = os.path.join(
     "Library",
     "Application Support",
     "it.riccardosartori.reditor"
+)
+DOWNLOAD_PATH = os.path.join(
+    os.path.expanduser("~"),
+    "Downloads",
 )
 EMPTY_SOUNDTRACK = {
     "type": "soundtrack",
@@ -22,7 +28,7 @@ EMPTY_SOUNDTRACK = {
 }
 EMPTY_SCRIPT = """
 [intro]
-[ost]
+[ost]00001;
 [outro]
 """[1:-1]
 EMPTY_CONFIG = """
@@ -30,6 +36,7 @@ next-scene-id 1
 next-soundtrack-id 2
 """[1:]
 open_file_id = None
+pool = urllib3.PoolManager()
 
 
 def p(path):
@@ -108,9 +115,18 @@ def write_config(project_id, variable, newval):
 
 
 def get_audio_length(path):
-    audio = MP3(path)
-    length = int(audio.info.length)
-    return {"m": int(length/60), "s": length % 61}
+    if os.path.exists(path):
+        audio = MP3(path)
+        length = int(audio.info.length)
+        return {"m": int(length/60), "s": length % 61, "ms": length % 1}
+    return {"m": 0, "s": 0, "ms": 0}
+
+
+def get_cache_dir(file_id=open_file_id):
+    ret = get_project_dir(file_id) + "/cache"
+    if not os.path.exists(ret):
+        os.mkdir(ret)
+    return ret
 
 
 class ScenePart:
@@ -176,7 +192,7 @@ def get_file_info(id):
                 audio_path = ret["path"]+f"/soundtrack/{soundtrack_id:05d}.mp3"
                 script.append({
                     "type": "soundtrack",
-                    "name": parts[2:],
+                    "name": ";".join(parts[2:]),
                     "duration": get_audio_length(audio_path),
                     "path": audio_path,
                     "number": soundtrack_id,
@@ -359,26 +375,32 @@ def change_scene_info(scene, script_index, new_script):
 
 
 @eel.expose
-def get_scene_info(scene):
-    scene_dir = get_scene_dir(open_file_id, scene)
+def get_scene_info(scene, file=None):
+    if file is None:
+        file = open_file_id
+    scene_dir = get_scene_dir(file, scene)
     fscript = open(scene_dir+"/script.txt")
     script = parse_script(fscript)
     fscript.close()
 
     image = None
+    img_path = scene_dir+"/image.png"
     if os.path.exists(scene_dir+"/image.png"):
         imagebin = open(scene_dir+"/image.png", "rb")
         image = "data:image/png;base64," + base64.b64encode(imagebin.read()).decode()
         imagebin.close()
     elif os.path.exists(scene_dir+"/image.jpg"):
         imagebin = open(scene_dir+"/image.jpg", "rb")
+        img_path = scene_dir+"/image.jpg"
         image = "data:image/jpeg;base64," + base64.b64encode(imagebin.read()).decode()
         imagebin.close()
 
     return {
         "number": scene,
         "image": image,
+        "image_path": img_path,
         "script": script,
+        "last_change": os.path.getmtime(scene_dir+"/script.txt"),
     }
 
 
@@ -511,6 +533,66 @@ def set_song(number, name, song_b64):
         "path": song_path,
         "number": number,
     }
+
+
+@eel.expose
+def export_file():
+    files = get_files()
+    file_name = None
+    for f in files:
+        if f["id"] == open_file_id:
+            file_name = f["name"]
+            break
+
+    if file_name is None:
+        return
+
+    export_dir = DOWNLOAD_PATH + f"/{file_name}-export"
+    if os.path.exists(export_dir):
+        shutil.rmtree(export_dir)
+    os.mkdir(export_dir)
+    util.video.export_video(open_file_id, export_dir, gui_callback=eel.gui_callback)
+
+
+def download_image(url, file_path):
+    stdout = open(file_path, "wb")
+    response = pool.request("GET", url, preload_content=False)
+    for chunk in response.stream(1024):
+        stdout.write(chunk)
+    response.release_conn()
+
+    if response.status == 404:
+        os.remove(file_path)
+        return None
+
+
+@eel.expose
+def download_images(platform, target):
+    image_urls = []
+    if platform == "reddit":
+        image_urls = util.requests.subreddit_image_posts(target)
+    elif platform == "twitter":
+        image_urls = util.requests.twitter_user_images(target)
+
+    if len(image_urls) == 0:
+        return False
+
+    tmp_dir = DATA_PATH + "/tmp"
+    dl_dir = tmp_dir + "/download"
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
+    os.mkdir(tmp_dir)
+    os.mkdir(dl_dir)
+
+    for i in range(len(image_urls)):
+        url = image_urls[i]
+        download_image(url, dl_dir+f"/{i:05d}.png")
+
+    shutil.make_archive(tmp_dir+f"/{target}", "zip", dl_dir)
+    zip_path = tmp_dir+f"/{target}.zip"
+    shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
+
+    return True
 
 
 init()

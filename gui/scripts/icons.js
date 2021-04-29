@@ -159,3 +159,9 @@ let icons = {
   ),
 }
 icons.active = icons.trashcan;
+
+function Favicon(props) {
+  let { icon } = props;
+
+  return icons[icon];
+}

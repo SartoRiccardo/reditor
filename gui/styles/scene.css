@@ -1,0 +1,49 @@
+
+.export-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.9);
+}
+
+.export-container {
+  width: 100%;
+  height: 100%;
+
+  position: relative;
+}
+
+.export-content {
+  width: 75%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.export-overlay .loading-bar-container {
+  height: 2rem;
+  padding: .3rem;
+  width: 100%;
+  border: 3px solid white;
+  border-radius: 5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.export-overlay .loading-bar {
+  height: 100%;
+  background-color: white;
+  border-radius: 5rem;
+}
+
+.export-overlay .loading-bar-percentage {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 0 1rem 0 .5rem;
+  background-color: rgba(0,0,0,0.75);
+  color: white;
+}

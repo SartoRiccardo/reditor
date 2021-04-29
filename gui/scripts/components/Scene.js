@@ -1,155 +1,4 @@
 
-class VideoPart extends React.Component {
-  state = {
-    hoveringSvg: false,
-  }
-
-  hoverSvg = () => this.setState({ hoveringSvg: true });
-  leaveSvg = () => this.setState({ hoveringSvg: false });
-
-  render() {
-    let { type, text, number, onClick, deleteScene, onDrag, onDrop } = this.props;
-    let { hoveringSvg } = this.state;
-
-    if(type === "transition") text = "Transition";
-    if(["scene", "active"].includes(type)) text = `Scene ${pad(number, 2)}`;
-
-    deleteScene = ["active", "transition"].includes(type) ? deleteScene : undefined;
-    let icon = icons[type];
-    if(type === "transition" && hoveringSvg) icon = icons.trashcan;
-
-    let onDragOver;
-    if(!["scene", "active"].includes(type)) onDrop = undefined;
-    else onDragOver = evt => evt.preventDefault();
-
-    return (
-      <li className={type} onClick={onClick} draggable={type === "transition"}
-          onDragStart={onDrag} onDragOver={onDragOver} onDrop={onDrop}>
-        <span className="text-truncate">{ text }</span>
-
-        <span className={"svg-container " + (hoveringSvg ? "hovered" : "")} onClick={deleteScene}
-            onMouseOver={this.hoverSvg} onMouseLeave={this.leaveSvg}>
-          { icon }
-        </span>
-      </li>
-    );
-  }
-}
-
-function AddVideoButtons(props) {
-  const { addScene, addTransition, exportVideo } = props;
-
-  return (
-    <div className="add-parts">
-      <span className="scene" onClick={addScene}>
-        <Favicon icon="plus" />
-      </span>
-      <span className="transition" onClick={addTransition}>
-        <Favicon icon="plus" />
-      </span>
-      <span className="export lead" onClick={exportVideo}>
-        Export
-      </span>
-    </div>
-  );
-}
-
-function Favicon(props) {
-  let { icon } = props;
-
-  return icons[icon];
-}
-
-class Navbar extends React.Component {
-  state = {
-    dragging: null,
-  }
-
-  startDragging = draggedElementIndex => {
-    return () => this.setState({ dragging: draggedElementIndex })
-  }
-
-  stopDragging = draggedOnIndex => {
-    const { onSwitchOrder } = this.props;
-    return () => {
-      onSwitchOrder(this.state.dragging, draggedOnIndex);
-      if(draggedOnIndex < this.state.dragging)
-        onSwitchOrder(++this.state.dragging, ++draggedOnIndex);
-      else
-        onSwitchOrder(this.state.dragging, draggedOnIndex);
-      this.setState({ dragging: null });
-    }
-  }
-
-  render() {
-    const { script, fileName, onSceneSelect, active, onSoundtrackSelect,
-      onSceneAdd, onTransitionAdd, onSceneDeletion } = this.props;
-    const { dragging } = this.state;
-
-    return (
-      <React.Fragment>
-        <div className="main-nav">
-          <p className="lead text-center p-3 text-truncate">{ fileName || "No file selected" }</p>
-          <ul>
-            <VideoPart type="preset" text="Intro"></VideoPart>
-            {
-              script.map((scene, i) => {
-                let onClick;
-                let type = scene.type;
-                let deleteScene;
-                let text = scene.text || scene.name;
-                switch(scene.type) {
-                  case "scene":
-                    onClick = () => onSceneSelect(scene.number);
-                    if(active === scene.number) {
-                      type = "active";
-                      onClick = undefined;
-                      deleteScene = () => onSceneDeletion(i);
-                    };
-                    break;
-
-                  case "soundtrack":
-                    onClick = () => onSoundtrackSelect(scene.number);
-                    text = (
-                      <React.Fragment>
-                        <span className="song-duration">
-                          [{pad(scene.duration.m, 2)}:{pad(scene.duration.s, 2)}]
-                        </span> {text}
-                      </React.Fragment>
-                    );
-                    break;
-
-                  case "transition":
-                    deleteScene = () => {
-                      onSceneDeletion(i);
-                      onSceneDeletion(i);
-                    };
-                    break;
-
-                  default:
-                    onClick = undefined;
-                }
-
-                return (
-                  <VideoPart key={i} number={scene.number} text={text}
-                    type={type} onClick={onClick} deleteScene={deleteScene}
-                    onDrag={this.startDragging(i)} onDrop={this.stopDragging(i)} />
-                );
-              })
-            }
-
-            <VideoPart type="preset" text="Outro"></VideoPart>
-          </ul>
-        </div>
-
-        <div className="sticky-options">
-          <AddVideoButtons addScene={onSceneAdd} addTransition={onTransitionAdd} />
-        </div>
-      </React.Fragment>
-    );
-  }
-}
-
 class Scene extends React.Component {
   img = null;
   newPageDefault = {
@@ -350,7 +199,7 @@ class Scene extends React.Component {
         voice: part.voice,
         wait: part.wait,
         selectionActive: part.crop.w*part.crop.h > 0,
-        selectionCoords: { ...part.crop, x: part.crop.y, y: part.crop.y },
+        selectionCoords: { ...part.crop, x: part.crop.x, y: part.crop.y },
         page: number
       });
     }
@@ -396,7 +245,7 @@ class Scene extends React.Component {
       voice: part.voice,
       wait: part.wait,
       selectionActive: part.crop.w*part.crop.h > 0,
-      selectionCoords: { ...part.crop, x: part.crop.y, y: part.crop.y },
+      selectionCoords: { ...part.crop, x: part.crop.x, y: part.crop.y },
       scene: {
         ...this.state.scene,
         script: newScript,
@@ -466,6 +315,17 @@ class Scene extends React.Component {
               <div className="cutter">
                 <div className="p-relative">
                   <img src={scene.image} />
+                  {
+                    scene.script
+                      .filter((_, i) => i < page)
+                      .map((p) =>
+                        <div className="previously-cropped"
+                          style={{
+                            width: p.crop.w+"%", height: p.crop.h+"%",
+                            top: p.crop.y+"%", left: p.crop.x+"%"
+                          }} />
+                      )
+                  }
                   <div id="user-selection" className={selectionActive ? " active" : undefined}
                     style={{width: sc.w+"%", height: sc.h+"%", top: sc.y+"%", left: sc.x+"%"}} />
                 </div>
@@ -522,257 +382,6 @@ class Scene extends React.Component {
           <p className="lead">Create a new scene!</p>
         </div>
       </div>
-    );
-  }
-}
-
-class Editor extends React.Component {
-  state = {
-    fileInfo: null,
-    scene: null,
-  }
-
-  componentDidMount() {
-    const { fileId } = this.props;
-    const tempFunc = async () => {
-      this.setState({ fileInfo: await getFileInfo(fileId) });
-    }
-    tempFunc();
-  }
-
-  getScene = async number => {
-    this.setState({ scene: await getSceneInfo(number) });
-  }
-
-  selectSoundtrack = async number => {
-    const callback = soundtrack => {
-      let match = 0;
-      let script = this.state.fileInfo.script;
-      for(let i=0; i < script.length; i++) {
-        if(script[i].type === "soundtrack")
-        if(script[i].type === "soundtrack" && script[i].number === number) {
-          match = i;
-          break;
-        }
-      }
-
-      if(soundtrack) {
-        let newScript = [ ...script ];
-        newScript[match] = soundtrack;
-        this.setState(ps => ({
-          fileInfo: {
-            ...ps.fileInfo,
-            script: newScript,
-          },
-        }));
-      }
-    }
-
-    await getSoundtrackFromFile(number, callback);
-  }
-
-  addScene = async () => {
-    const newScenes = await addToScript("scene");
-
-    this.setState({
-      fileInfo: {
-        ...this.state.fileInfo,
-        script: [
-          ...this.state.fileInfo.script,
-          ...newScenes,
-        ],
-      },
-    });
-  }
-
-  addTransition = async () => {
-    const newScenes = await addToScript(["transition", "soundtrack"]);
-
-    this.setState({
-      fileInfo: {
-        ...this.state.fileInfo,
-        script: [
-          ...this.state.fileInfo.script,
-          ...newScenes,
-        ],
-      },
-    });
-  }
-
-  deleteScene = async index => {
-    await deleteScene(index);
-
-    this.setState(prevState => {
-      const newScript = prevState.fileInfo.script.filter((_, i) => index !== i);
-      return {
-        fileInfo: {
-          ...prevState.fileInfo,
-          script: newScript,
-        },
-        scene: null,
-      }
-    });
-  }
-
-  switchOrder = async (startI, endI) => {
-    await relocateItem(startI, endI);
-    this.setState(prevState => {
-      let script = [ ...prevState.fileInfo.script ];
-      const scene = script[startI];
-      script = script.filter((_, i) => i !== startI);
-      script.splice(endI, 0, scene);
-      return {
-        fileInfo: {
-          ...prevState.fileInfo,
-          script,
-        },
-      };
-    });
-  }
-
-  render() {
-    const { fileInfo, scene } = this.state;
-    if(!fileInfo) return <div />;
-    const { script, name } = fileInfo;
-
-    return (
-      <React.Fragment>
-        <nav>
-          <Navbar script={script} fileName={name} onSceneSelect={this.getScene}
-            onSoundtrackSelect={this.selectSoundtrack}
-            active={scene ? scene.number : -1}
-            onSceneAdd={this.addScene}
-            onTransitionAdd={this.addTransition}
-            onSceneDeletion={this.deleteScene}
-            onSwitchOrder={this.switchOrder} />
-        </nav>
-
-        <div className="app">
-          <Scene scene={scene} key={scene ? scene.number : "-1"} />
-        </div>
-      </React.Fragment>
-    )
-  }
-}
-
-class MainMenu extends React.Component {
-  state = {
-    modalOpen: false,
-    fileName: "",
-  }
-
-  openModal = () => {
-    this.setState({ modalOpen: true, fileName: "" });
-  }
-  closeModal = () => {
-    this.setState({ modalOpen: false });
-  }
-
-  change = evt => {
-    this.setState({ [evt.target.name]: evt.target.value });
-  }
-
-  submit = evt => {
-    evt.preventDefault();
-    const { makeFile } = this.props;
-    const { fileName } = this.state;
-
-    if(fileName.length === 0) return;
-    makeFile(fileName);
-  }
-
-  onDelete = file => {
-    return evt => {
-      const { onFileDeletion } = this.props;
-      evt.stopPropagation();
-      if(confirm(`Do you really want to delete ${file.name}`)) {
-        onFileDeletion(file.id);
-      }
-    }
-  }
-
-  render() {
-    const { files, select, makeFile } = this.props;
-    const { modalOpen, fileName } = this.state;
-
-    return (
-      <div className="main-menu">
-        <div className="menu-container">
-          <ul>
-            {
-              files.map((f, i) => {
-                let className;
-                if(i === 0) className = "first";
-                if(i === files.length-1) className = "last";
-                return (
-                  <li key={f.id} className={className} onClick={() => select(f.id)}>
-                    { f.name }
-                    <span className="svg-container" onClick={this.onDelete(f)}>
-                      <Favicon icon="trashcan" />
-                    </span>
-                  </li>
-                );
-              })
-            }
-            <li className="mt-3" onClick={this.openModal}>
-              New File
-            </li>
-          </ul>
-        </div>
-        {
-          modalOpen && (
-            <div className="overlay">
-              <div className="overlay" onClick={this.closeModal} />
-              <form className="create-file" onSubmit={this.submit}>
-                <h1 className="">Document Name</h1>
-                <input type="text" className="form-control" autoFocus
-                    onChange={this.change} value={fileName} name="fileName"
-                    autoComplete="off" />
-              </form>
-            </div>
-          )
-        }
-      </div>
-    );
-  }
-}
-
-class App extends React.Component {
-  state = {
-    files: null,
-    chosenFile: -1,
-  }
-
-  componentDidMount() {
-    const asFun = async () =>  this.setState({ files: await getFiles() });
-    asFun();
-  }
-
-  select = chosenFile => this.setState({ chosenFile });
-
-  makeNewFile = async name => {
-    const newFile = await createFile(name);
-
-    this.setState(prevState => ({
-      files: [ ...prevState.files, newFile ],
-      chosenFile: prevState.files.length,
-    }));
-  }
-
-  deleteFile = async id => {
-    await deleteFile(id);
-    this.setState(ps => ({ files: ps.files.filter((f) => id !== f.id) }));
-  }
-
-  render() {
-    const { files, chosenFile } = this.state;
-
-    return files && (
-      chosenFile >= 0 ?
-      <Editor fileId={chosenFile} />
-      :
-      <MainMenu files={files} select={this.select} makeFile={this.makeNewFile}
-          onFileDeletion={this.deleteFile} />
     );
   }
 }

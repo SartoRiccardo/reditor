@@ -22,6 +22,7 @@
 
     --purple-lighten-4: #e1bee7;
     --purple-lighten-1: #ab47bc;
+    --purple: #9c27b0;
     --purple-darken-1: #8e24aa;
 
     --green-lighten-2: #81c784;
@@ -37,3 +38,5 @@
     --red-darken-2: #d32f2f;
     --red-darken-4: #b71c1c;
 }
+
+.white-text { color: white }
