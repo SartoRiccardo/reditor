@@ -25,6 +25,7 @@ class Navbar extends React.Component {
       onSceneAdd, onTransitionAdd, onSceneDeletion, onExportVideo } = this.props;
     const { dragging } = this.state;
 
+    let current_scene_num = 0;
     return (
       <React.Fragment>
         <div className="main-nav">
@@ -37,8 +38,11 @@ class Navbar extends React.Component {
                 let type = scene.type;
                 let deleteScene;
                 let text = scene.text || scene.name;
+                let scene_num = scene.number;
                 switch(scene.type) {
                   case "scene":
+                    current_scene_num++;
+                    scene_num = current_scene_num;
                     onClick = () => onSceneSelect(scene.number);
                     if(active === scene.number) {
                       type = "active";
@@ -72,7 +76,8 @@ class Navbar extends React.Component {
                 return (
                   <VideoPart key={i} number={scene.number} text={text}
                     type={type} onClick={onClick} deleteScene={deleteScene}
-                    onDrag={this.startDragging(i)} onDrop={this.stopDragging(i)} />
+                    onDrag={this.startDragging(i)} onDrop={this.stopDragging(i)}
+                    scene_num={scene_num} />
                 );
               })
             }

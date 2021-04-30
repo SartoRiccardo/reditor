@@ -1,6 +1,5 @@
 import imageio
 try:
-    # import moviepy.editor as mpy
     from moviepy.video.VideoClip import ImageClip
     from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
     from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -43,7 +42,27 @@ SIZES = {
 VIDEO_SIZE = SIZES[720]
 SOUNDTRACK_FADE_TIME = 1
 VIDEO_FADE_TIME = 1
-FPS = 1
+FPS = 30
+BR = "\n"
+
+
+class Subtitle:
+    def __init__(self, text, start, end):
+        self.start = start
+        self.end = end
+        self.text = text
+
+    @staticmethod
+    def time_to_str(time):
+        m = int(time/60)
+        s = int(time % 60)
+        ms = round(time % 1, 3)
+        ms_str = f"{ms:.3f}"[2:]
+        return f"00:{m:02d}:{s:02d},{ms_str}"
+
+    def __str__(self):
+        return f"{Subtitle.time_to_str(self.start)} --> {Subtitle.time_to_str(self.end)}" + BR + \
+            f"{self.text}" + BR
 
 
 class CustomProgressBar(TqdmProgressBarLogger):
@@ -123,6 +142,7 @@ def export_video(file_id, out_dir, gui_callback=None):
     clips = [intro, background.set_start(t)]
     t += VIDEO_FADE_TIME
     audios = [intro.audio]
+    subtitles = []
     part_soundtrack = None
     for i in range(len(document["script"])):
         s = document["script"][i]
@@ -157,7 +177,8 @@ def export_video(file_id, out_dir, gui_callback=None):
                     scenes_left += 1
 
             scene = util.io.get_scene_info(s["number"], file_id)
-            scene_clips, subtitles, t = get_scene_clips(t, scene, cache_dir, scenes_left == 0)
+            scene_clips, part_subtitles, t = get_scene_clips(t, scene, cache_dir, scenes_left == 0)
+            subtitles += part_subtitles
             for c in scene_clips:
                 if isinstance(c, ImageClip) or isinstance(c, CompositeVideoClip):
                     clips.append(c)
@@ -189,6 +210,15 @@ def export_video(file_id, out_dir, gui_callback=None):
         on_color(color=WHITE, col_opacity=1). \
         set_audio(audios). \
         set_duration(t)
+
+    fsub = open(out_dir+"/subtitles.srt", "w")
+    for i in range(len(subtitles)):
+        s = subtitles[i]
+        fsub.write(f"{i+1}\n")
+        fsub.write(str(s))
+        if i != len(subtitles)-1:
+            fsub.write("\n")
+    fsub.close()
 
     logger.set_total_frames(t*FPS)
     video.write_videofile(out_dir+"/video.mp4", fps=FPS, audio_codec="aac", logger=logger)
@@ -231,6 +261,7 @@ def get_scene_clips(t, scene, cache_dir, is_last=False):
                 set_start(t). \
                 volumex(1.8)
             audios.append(part_audio)
+            subtitles.append(Subtitle(part["text"], t, t+part_audio.duration))
 
         crop = part["crop"]
         x = int(new_w*crop["x"]/100)

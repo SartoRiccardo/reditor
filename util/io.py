@@ -134,7 +134,7 @@ class ScenePart:
     def part_to_object(lines):
         lines = lines.split("\n")
         coords = lines[0].split(";")
-        object = {
+        ob = {
             "crop": {
                 "x": float(coords[0]),
                 "y": float(coords[1]),
@@ -145,15 +145,16 @@ class ScenePart:
             "voice": lines[2],
             "wait": float(lines[3]),
         }
-        return object
+        return ob
 
     @staticmethod
     def object_to_text(scene):
+        wait = scene["wait"] if scene["wait"].isnumeric() else 1.0
         return (
             f"{scene['crop']['x']};{scene['crop']['y']};{scene['crop']['w']};{scene['crop']['h']}" + "\n" +
             scene["text"] + "\n" +
             scene["voice"] + "\n" +
-            str(scene["wait"])
+            str(object_to_text)
         )
 
 
