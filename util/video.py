@@ -42,7 +42,7 @@ SIZES = {
 VIDEO_SIZE = SIZES[720]
 SOUNDTRACK_FADE_TIME = 1
 VIDEO_FADE_TIME = 1
-FPS = 30
+FPS = 25
 BR = "\n"
 
 
@@ -73,7 +73,7 @@ class CustomProgressBar(TqdmProgressBarLogger):
         self.started_video = False
         self.gui_callback = gui_callback
         if self.gui_callback:
-            self.gui_callback({"message": "Started exporting", "percentage": 0})
+            self.gui_callback({"started": True, "percentage": 0})
         self.prev_percentage = 100
 
     def set_total_frames(self, frames):
@@ -82,7 +82,7 @@ class CustomProgressBar(TqdmProgressBarLogger):
     def bars_callback(self, bar, attr, value, old_value):
         super().bars_callback(bar, attr, value, old_value)
         if self.started_video and self.gui_callback:
-            percentage = int((value+1)/self.total_frames*100)
+            percentage = (value+1)/self.total_frames*100
             percentage = CustomProgressBar.trunc_half(percentage)
             if percentage != self.prev_percentage:
                 self.gui_callback({"percentage": percentage})
@@ -90,7 +90,7 @@ class CustomProgressBar(TqdmProgressBarLogger):
 
     @staticmethod
     def trunc_half(num):
-        return num - (int(num * 10) % 5) / 10
+        return num - (int(num * 10) % 3) / 10
 
     def callback(self, **changes):
         super().callback(**changes)
@@ -98,27 +98,95 @@ class CustomProgressBar(TqdmProgressBarLogger):
         if "message" in changes:
             msg = changes["message"]
             if "Writing video" in msg:
+                vidlen = self.total_frames / FPS
+                m = int(vidlen/60)
+                s = int(vidlen % 60)
+
                 self.started_video = True
                 self.prev_percentage = 100
-                self.gui_callback({"message": "Exporting video..."})
+                self.gui_callback({"status": "video"})
             elif "Writing audio" in msg:
                 if self.gui_callback:
-                    self.gui_callback({"message": "Creating audio..."})
+                    self.gui_callback({"status": "audio"})
             elif "video ready" in msg:
                 if self.gui_callback:
-                    self.gui_callback({"message": "Video ready!", "finished": True})
+                    self.gui_callback({"finished": True})
+
+
+class GuiLogger:
+    def __init__(self, callback, chunks=0):
+        self.callback = callback
+        self.chunks = chunks+1
+        self.current_chunk = 0
+
+    def set_chunks(self, chunks):
+        self.chunks = chunks+1
+
+    def log(self, evt):
+        to_send = {}
+        if "started" in evt and evt["started"]:
+            self.current_chunk += 1
+            if self.current_chunk == self.chunks:
+                to_send["message"] = f"Exporting final..."
+            else:
+                to_send["message"] = f"Exporting chunk... ({self.current_chunk}/{self.chunks})"
+            to_send["subtitle"] = ""
+
+        if "status" in evt:
+            if evt["status"] == "audio":
+                to_send["subtitle"] = "Creating audio..."
+            elif evt["status"] == "video":
+                to_send["subtitle"] = "Creating video..."
+            elif evt["status"] == "download-audio":
+                to_send["subtitle"] = "Generating TTS audios..."
+
+        if "percentage" in evt:
+            to_send["percentage"] = evt["percentage"]
+        if "finished" in evt and self.current_chunk == self.chunks:
+            to_send["finished"] = evt["finished"]
+
+        if "error" in evt:
+            to_send["subtitle"] = "Something went wrong!"
+
+        if self.callback:
+            self.callback(to_send)
 
 
 def export_video(file_id, out_dir, gui_callback=None):
     """
-    Pieces together the video with all the info found in the document's directory.
+    A wrapper for an easier time trying and excepting.
     :param file_id: int: The numerical ID of the file.
     :param out_dir: str: A path pointing to a new directory.
     :param gui_callback: function: A function called every time the state changes.
     """
+    logger = GuiLogger(gui_callback)
+    logger.log({"status": "download-audio"})
+    try:
+        export_video_wrapped(file_id, out_dir, logger=logger)
+    except Exception as exc:
+        logger.log({"error": True})
+        raise exc
+
+
+def export_video_wrapped(file_id, out_dir, logger=None):
+    """
+    Pieces together the video with all the info found in the document's directory.
+    :param file_id: int: The numerical ID of the file.
+    :param out_dir: str: A path pointing to a new directory.
+    :param logger: GuiLogger: An objects that forwards status updates to the GUI.
+    """
     document = util.io.get_file_info(file_id)
     cache_dir = util.io.get_cache_dir(file_id)
-    logger = CustomProgressBar(gui_callback=gui_callback)
+
+    chunks = 1
+    for s in document["script"]:
+        if s["type"] == "transition":
+            chunks += 1
+        elif s["type"] == "scene":
+            download_audios_for(s, cache_dir)
+    logger.set_chunks(chunks)
+
+    chunk_logger = CustomProgressBar(gui_callback=logger.log)
 
     transition = VideoFileClip(util.io.DATA_PATH + "/assets/transition.mp4")
     intro = VideoFileClip(util.io.DATA_PATH + "/assets/intro.mp4")
@@ -135,15 +203,17 @@ def export_video(file_id, out_dir, gui_callback=None):
         background = background.resize(width=VIDEO_SIZE[0])
     else:
         background = background.resize(height=VIDEO_SIZE[1])
-    background = background. \
-        fadein(VIDEO_FADE_TIME)
 
     t = intro.duration
-    clips = [intro, background.set_start(t)]
+    clips = [intro, background.set_start(t).fadein(VIDEO_FADE_TIME)]
     t += VIDEO_FADE_TIME
     audios = [intro.audio]
     subtitles = []
     part_soundtrack = None
+    temp_video_paths = []
+    temp_video_durations = []
+    has_transitioned_once = False
+
     for i in range(len(document["script"])):
         s = document["script"][i]
         if s["type"] == "soundtrack":
@@ -153,6 +223,7 @@ def export_video(file_id, out_dir, gui_callback=None):
                 volumex(0.2)
 
         elif s["type"] == "transition":
+            has_transitioned_once = True
             if part_soundtrack:
                 part_start = part_soundtrack.start
                 part_end = t-SOUNDTRACK_FADE_TIME
@@ -164,20 +235,46 @@ def export_video(file_id, out_dir, gui_callback=None):
                 audios.append(part_soundtrack)
             part_soundtrack = None
 
-            clips.append(transition.
-                         set_start(t))
-            audios.append(transition.audio.
-                          set_start(t))
+            clips.append(transition.set_start(t))
+            audios.append(transition.audio.set_start(t))
             t += transition.duration
 
-        if s["type"] == "scene":
+            audio_clip = CompositeAudioClip(audios). \
+                set_duration(t)
+            video = CompositeVideoClip(clips, size=VIDEO_SIZE). \
+                on_color(color=WHITE, col_opacity=1). \
+                set_audio(audio_clip). \
+                set_duration(t)
+
+            chunk_logger.set_total_frames(FPS * t)
+            temp_video_path = cache_dir + f"/tmp-{len(temp_video_paths)}.mp4"
+            temp_audio_path = cache_dir + f"/tmp-{len(temp_video_paths)}-aud.mp4"
+            video.write_videofile(temp_video_path, fps=FPS, audio_codec="aac", logger=chunk_logger,
+                                  temp_audiofile=temp_audio_path)
+            temp_video_paths.append(temp_video_path)
+
+            temp_video_durations.append(t)
+            t = 0
+            chunk_logger = CustomProgressBar(gui_callback=logger.log)
+            for c in clips:
+                c.close()
+            clips = [background]
+            for a in audios:
+                a.close()
+            audios = []
+            audio_clip.close()
+            video.close()
+
+        elif s["type"] == "scene":
             scenes_left = 0
             for j in range(i+1, len(document["script"])):
                 if document["script"][j]["type"] == "scene":
                     scenes_left += 1
 
             scene = util.io.get_scene_info(s["number"], file_id)
-            scene_clips, part_subtitles, t = get_scene_clips(t, scene, cache_dir, scenes_left == 0)
+            scene_clips, part_subtitles, t = get_scene_clips(
+                t, scene, cache_dir, is_last=scenes_left == 0, complete_video_t=sum(temp_video_durations)
+            )
             subtitles += part_subtitles
             for c in scene_clips:
                 if isinstance(c, ImageClip) or isinstance(c, CompositeVideoClip):
@@ -185,7 +282,8 @@ def export_video(file_id, out_dir, gui_callback=None):
                 elif isinstance(c, AudioFileClip):
                     audios.append(c)
 
-    clips[1] = clips[1]. \
+    bg_i = 0 if has_transitioned_once else 1
+    clips[bg_i] = clips[bg_i]. \
         set_end(t). \
         fadeout(VIDEO_FADE_TIME). \
         fadein(VIDEO_FADE_TIME)
@@ -203,13 +301,31 @@ def export_video(file_id, out_dir, gui_callback=None):
     clips.append(outro.set_start(t))
     audios.append(outro.audio.set_start(t))
     t += outro.duration
+    temp_video_durations.append(t)
 
-    audios = CompositeAudioClip(audios). \
+    audio_clip = CompositeAudioClip(audios). \
         set_duration(t)
     video = CompositeVideoClip(clips, size=VIDEO_SIZE). \
         on_color(color=WHITE, col_opacity=1). \
-        set_audio(audios). \
+        set_audio(audio_clip). \
         set_duration(t)
+    chunk_logger.set_total_frames(FPS * t)
+    temp_video_path = cache_dir + f"/tmp-{len(temp_video_paths)}.mp4"
+    temp_audio_path = cache_dir + f"/tmp-{len(temp_video_paths)}-aud.mp4"
+    video.write_videofile(temp_video_path, fps=FPS, audio_codec="aac", logger=chunk_logger,
+                          temp_audiofile=temp_audio_path)
+    temp_video_paths.append(temp_video_path)
+
+    for c in clips:
+        c.close()
+    for a in audios:
+        a.close()
+    audio_clip.close()
+    video.close()
+
+    background.close()
+    intro.close()
+    outro.close()
 
     fsub = open(out_dir+"/subtitles.srt", "w")
     for i in range(len(subtitles)):
@@ -220,19 +336,26 @@ def export_video(file_id, out_dir, gui_callback=None):
             fsub.write("\n")
     fsub.close()
 
-    logger.set_total_frames(t*FPS)
-    video.write_videofile(out_dir+"/video.mp4", fps=FPS, audio_codec="aac", logger=logger)
+    chunk_logger = CustomProgressBar(gui_callback=logger.log)
+    composite_videos(temp_video_paths, out_dir+"/video.mp4", chunk_logger)
+    for tmp_vid in temp_video_paths:
+        os.remove(tmp_vid)
 
 
-def get_scene_clips(t, scene, cache_dir, is_last=False):
+def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
     """
     Creates audio and image clips with the given scene
     :param t: int: The time the scene will start at.
     :param scene: Scene: The scene to convert to clips.
     :param cache_dir: str: A directory in which to put downloaded temporary audio files.
     :param is_last: boolean: Whether it's the last scene. If it is, it fades out to black.
+    :param complete_video_t: int: The overall time the clip starts at. Useful if the video
+                                  is being split for memory issues.
     :return: [Clip[], Subtitle[], int]: A list of clips, subtitle and the time at which the scene ends.
     """
+    if complete_video_t is None:
+        complete_video_t = t
+
     clips = []
     audios = []
     subtitles = []
@@ -249,19 +372,16 @@ def get_scene_clips(t, scene, cache_dir, is_last=False):
         wait_length = t + part["wait"]
         if part["text"]:
             audio_path = cache_dir+f"/{scene['number']:05d}-{i:05d}.mp3"
-            if not os.path.exists(audio_path) or os.path.getmtime(audio_path) <= scene["last_change"]:
-                print(f"DL {part['text']}")
-                faud = open(audio_path, "wb")
-                faud.write(util.requests.get_tts_audio(part["text"], part["voice"]))
-                faud.close()
-            audio_length = util.io.get_audio_length(audio_path)
-            wait_length += audio_length["m"]*60 + audio_length["s"] + audio_length["ms"]
-
+            # if not os.path.exists(audio_path) or os.path.getmtime(audio_path) <= scene["last_change"]:
+            #     faud = open(audio_path, "wb")
+            #     faud.write(util.requests.get_tts_audio(part["text"], part["voice"]))
+            #     faud.close()
             part_audio = AudioFileClip(audio_path). \
                 set_start(t). \
                 volumex(1.8)
             audios.append(part_audio)
-            subtitles.append(Subtitle(part["text"], t, t+part_audio.duration))
+            subtitles.append(Subtitle(part["text"], complete_video_t+t, complete_video_t+t+part_audio.duration))
+            wait_length += part_audio.duration
 
         crop = part["crop"]
         x = int(new_w*crop["x"]/100)
@@ -288,3 +408,44 @@ def get_scene_clips(t, scene, cache_dir, is_last=False):
         clips = [c.set_end(t) for c in clips]
     clips += audios
     return [clips, subtitles, t]
+
+
+def composite_videos(paths, out_file, logger="bar"):
+    clips = []
+
+    t = 0
+    for i in range(len(paths)):
+        p = paths[i]
+        vc = VideoFileClip(p).set_start(t)
+        clips.append(vc)
+        t += vc.duration
+
+    if isinstance(logger, CustomProgressBar):
+        logger.set_total_frames(FPS * t)
+    video = CompositeVideoClip(clips). \
+        set_duration(t)
+    temp_audio_path = out_file[:-4]+"-aud.mp4"
+    video.write_videofile(out_file, fps=FPS, audio_codec="aac", logger=logger,
+                          temp_audiofile=temp_audio_path)
+
+
+def download_audios_for(s, cache_dir):
+    scene = util.io.get_scene_info(s["number"])
+    for i in range(len(scene["script"])):
+        part = scene["script"][i]
+        if part["text"]:
+            audio_path = cache_dir+f"/{scene['number']:05d}-{i:05d}.mp3"
+            if not os.path.exists(audio_path) or os.path.getmtime(audio_path) <= scene["last_change"]:
+                faud = open(audio_path, "wb")
+                audio = None
+                tries = 3
+                while tries:
+                    try:
+                        audio = util.requests.get_tts_audio(part["text"], part["voice"])
+                        tries = 0
+                    except:
+                        tries -= 1
+                if not audio:
+                    raise Exception(f"Could not download audio {scene['number']:05d}-{i:05d}")
+                faud.write(audio)
+                faud.close()

@@ -318,8 +318,8 @@ class Scene extends React.Component {
                   {
                     scene.script
                       .filter((_, i) => i < page)
-                      .map((p) =>
-                        <div className="previously-cropped"
+                      .map((p, i) =>
+                        <div className="previously-cropped" key={i}
                           style={{
                             width: p.crop.w+"%", height: p.crop.h+"%",
                             top: p.crop.y+"%", left: p.crop.x+"%"

@@ -1,4 +1,9 @@
 
+const KEY_UP = 38;
+const KEY_DOWN = 40;
+const KEY_LEFT = 37;
+const KEY_RIGHT = 39;
+
 class Editor extends React.Component {
   state = {
     fileInfo: null,
@@ -7,6 +12,7 @@ class Editor extends React.Component {
     exporting: false,
     percentage: 0,
     message: "",
+    subtitle: "",
     finished: false,
   }
 
@@ -16,6 +22,59 @@ class Editor extends React.Component {
       this.setState({ fileInfo: await getFileInfo(fileId) });
     }
     tempFunc();
+
+    document.addEventListener("keydown", evt => {
+      const { fileInfo, scene } = this.state;
+      let found, next, prev;
+      switch(evt.keyCode) {
+        case KEY_UP:
+          if(fileInfo.script.length === 0 || !scene) break;
+
+          prev = null;
+          for(let i = 0; i < fileInfo.script.length; i++) {
+            const s = fileInfo.script[i];
+            if(!found && s.type === "scene" && s.number === scene.number) break;
+            if(s.type === "scene") prev = s.number;
+          }
+          if(prev) this.getScene(prev);
+          break;
+
+        case KEY_DOWN:
+          if(fileInfo.script.length === 0) break;
+
+          if(!scene) {
+            for(let i = 0; i < fileInfo.script.length; i++) {
+              const s = fileInfo.script[i];
+              if(s.type === "scene") {
+                this.getScene(s.number);
+                break;
+              }
+            }
+            break;
+          }
+
+          found = false;
+          next = null;
+          for(let i = 0; i < fileInfo.script.length; i++) {
+            const s = fileInfo.script[i];
+            if(!found && s.type === "scene" && s.number === scene.number) {
+              found = true;
+              continue;
+            }
+            if(found && s.type === "scene") {
+              next = s.number;
+              break;
+            }
+          }
+          if(next !== null) this.getScene(next);
+
+          break;
+      }
+    });
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener("keydown");
   }
 
   getScene = async number => {
@@ -118,6 +177,7 @@ class Editor extends React.Component {
     exportFile(evt => {
       let newState = {};
       if("message" in evt) { newState.message = evt.message; }
+      if("subtitle" in evt) { newState.subtitle = evt.subtitle; }
       if("percentage" in evt) { newState.percentage = evt.percentage; }
       if("finished" in evt) {
         newState.finished = evt.finished;
@@ -129,7 +189,7 @@ class Editor extends React.Component {
   }
 
   render() {
-    const { fileInfo, scene, exporting, message, percentage, finished } = this.state;
+    const { fileInfo, scene, exporting, message, percentage, finished, subtitle } = this.state;
     if(!fileInfo) return <div />;
     const { script, name } = fileInfo;
 
@@ -156,6 +216,7 @@ class Editor extends React.Component {
             percentage={percentage}
             message={message}
             finished={finished}
+            subtitle={subtitle}
           />
         }
       </React.Fragment>

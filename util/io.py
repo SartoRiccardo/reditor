@@ -7,6 +7,7 @@ from mutagen.mp3 import MP3
 import urllib3
 import util.requests
 import time
+import traceback
 
 
 DATA_PATH = os.path.join(
@@ -150,12 +151,11 @@ class ScenePart:
 
     @staticmethod
     def object_to_text(scene):
-        wait = scene["wait"] if scene["wait"].isnumeric() else 1.0
         return (
             f"{scene['crop']['x']};{scene['crop']['y']};{scene['crop']['w']};{scene['crop']['h']}" + "\n" +
             scene["text"] + "\n" +
             scene["voice"] + "\n" +
-            str(wait)
+            str(scene["wait"])
         )
 
 
@@ -553,7 +553,12 @@ def export_file():
     if os.path.exists(export_dir):
         shutil.rmtree(export_dir)
     os.mkdir(export_dir)
-    util.video.export_video(open_file_id, export_dir, gui_callback=eel.gui_callback)
+    try:
+        util.video.export_video(open_file_id, export_dir, gui_callback=eel.gui_callback)
+    except Exception as exc:
+        fout = open("/Users/riccardosartori/Desktop/err.txt", "w")
+        fout.write(traceback.format_exc())
+        fout.close()
 
 
 def download_image(url, file_path):

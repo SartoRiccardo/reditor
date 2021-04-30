@@ -44,17 +44,18 @@ def subreddit_image_posts(sub):
     reddit.read_only = True
 
     try:
-        submissions = reddit.subreddit(sub).top()
-        submissions += reddit.subreddit(sub).hot()
+        submission_lists = [reddit.subreddit(sub).top(), reddit.subreddit(sub).hot()]
 
         ret = []
-        for s in submissions:
-            if hasattr(s, "post_hint") and s.post_hint == "image" and not s.stickied and \
-                    not s.over_18:
-                source = s.preview["images"][0]["source"]
-                image_url = s.preview["images"][0]["source"]["url"]
-                if MIN_RATIO <= source["width"]/source["height"] <= MAX_RATIO and image_url not in ret:
-                    ret.append(image_url)
+        for submissions in submission_lists:
+            for s in submissions:
+                if hasattr(s, "post_hint") and s.post_hint == "image" and not s.stickied and \
+                        not s.over_18:
+                    source = s.preview["images"][0]["source"]
+                    image_url = s.preview["images"][0]["source"]["url"]
+                    if MIN_RATIO <= source["width"]/source["height"] <= MAX_RATIO and \
+                            image_url not in ret:
+                        ret.append(image_url)
 
         return ret
 

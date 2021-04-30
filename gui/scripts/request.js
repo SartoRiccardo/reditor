@@ -97,8 +97,7 @@ async function getImageFromFile(scene, onSelect) {
  * @return {Scene[]}                                          The newly created scenes.
  */
 async function addToScript(types, index=null) {
-  const ret = eel.add_to_script(types)()
-  console.log(ret)
+  const ret = await eel.add_to_script(types)()
   return ret
 }
 
