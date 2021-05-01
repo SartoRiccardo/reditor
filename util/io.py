@@ -40,6 +40,14 @@ open_file_id = None
 pool = urllib3.PoolManager()
 
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def p(path):
     return DATA_PATH+path
 
@@ -118,8 +126,8 @@ def write_config(project_id, variable, newval):
 def get_audio_length(path):
     if os.path.exists(path):
         audio = MP3(path)
-        length = int(audio.info.length)
-        return {"m": int(length/60), "s": length % 60, "ms": length % 1, "total": length}
+        length = audio.info.length
+        return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
     return {"m": 0, "s": 0, "ms": 0, "total": 0}
 
 
@@ -135,7 +143,7 @@ class ScenePart:
     def part_to_object(lines):
         lines = lines.split("\n")
         coords = lines[0].split(";")
-        wait = float(lines[3]) if lines[3].isnumeric() else 1
+        wait = float(lines[3]) if is_number(lines[3]) else 1
         ob = {
             "crop": {
                 "x": float(coords[0]),
@@ -387,18 +395,6 @@ def get_scene_info(scene, file=None):
     fscript.close()
 
     duration = get_scene_duration(scene)
-    # cache_dir = get_cache_dir(file)
-    # duration = 0
-    # for i in range(len(script)):
-    #     part = script[i]
-    #     if part["text"]:
-    #         aud_path = cache_dir + f"/{scene:05d}-{i:05d}.mp3"
-    #         if os.path.exists(aud_path):
-    #             duration += get_audio_length(aud_path)["total"]
-    #             duration += part["wait"]
-    #         else:
-    #             duration = None
-    #             break
 
     image = None
     img_path = scene_dir+"/image.png"
@@ -442,10 +438,10 @@ def get_scene_duration(scene, file=None):
             aud_path = cache_dir + f"/{scene:05d}-{i:05d}.mp3"
             if os.path.exists(aud_path):
                 duration += get_audio_length(aud_path)["total"]
-                duration += part["wait"]
             else:
                 duration = None
                 break
+        duration += part["wait"]
 
     return duration
 

@@ -75,7 +75,7 @@ class Navbar extends React.Component {
                       text = (
                         <React.Fragment>
                           <span className="song-duration">
-                            [{pad(scene.duration, 2)}s]
+                            [{pad(Math.round(scene.duration), 2)}s]
                           </span> {text}
                         </React.Fragment>
                       );
@@ -144,7 +144,7 @@ class Navbar extends React.Component {
             {
               totalVideoLength !== null &&
               <li className="video-duration">
-                Duration: {pad(Math.round(totalVideoLength/60), 2)}:{pad(totalVideoLength%60, 2)}
+                Duration: {pad(Math.round(totalVideoLength/60), 2)}:{pad(Math.round(totalVideoLength%60), 2)}
               </li>
             }
           </ul>
