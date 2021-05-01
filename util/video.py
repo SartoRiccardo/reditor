@@ -220,7 +220,7 @@ def export_video_wrapped(file_id, out_dir, logger=None):
             part_soundtrack = AudioFileClip(s["path"]). \
                 set_start(t). \
                 fx(audio_normalize). \
-                volumex(0.2)
+                volumex(0.1)
 
         elif s["type"] == "transition":
             has_transitioned_once = True
@@ -377,7 +377,7 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
             #     faud.close()
             part_audio = AudioFileClip(audio_path). \
                 set_start(t). \
-                volumex(1.8)
+                volumex(2.3)
             audios.append(part_audio)
             subtitles.append(Subtitle(part["text"], complete_video_t+t, complete_video_t+t+part_audio.duration))
             wait_length += part_audio.duration
