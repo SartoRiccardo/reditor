@@ -143,3 +143,20 @@ nav .add-parts .export {
 .song-duration {
   color: var(--gray-darken-2);
 }
+
+.soundtrack-end {
+  background-color: var(--purple-lighten-4);
+  border-color: var(--purple-lighten-1);
+  padding: 0;
+  display: list-item;
+  cursor: default;
+}
+
+.video-duration {
+  background-color: var(--pink-lighten-4);
+  border: 3px solid var(--pink-lighten-1);
+  border-radius: 4px;
+  text-align: center;
+  display: list-item;
+  padding: 0;
+}

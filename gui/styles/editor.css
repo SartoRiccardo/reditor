@@ -1,0 +1,32 @@
+
+.export-settings-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.export-settings.top {
+  padding: .75rem 2rem;
+  background-color: var(--blue-darken-4);
+  border-top-right-radius: 1rem;
+  border-top-left-radius: 1rem;
+  text-align: center;
+  color: white
+}
+
+form.export-settings {
+  padding: 1rem 2rem;
+  background-color: white;
+  border: 3px solid var(--gray-lighten-2);
+  border-bottom-right-radius: 1rem;
+  border-bottom-left-radius: 1rem;
+}
+
+.export-button-container {
+  display: flex;
+}
+
+.export-button-container .left {
+  margin-left: auto;
+}

@@ -1,6 +1,6 @@
 
 function AddVideoButtons(props) {
-  const { addScene, addTransition, exportVideo } = props;
+  const { addScene, addTransition, openModal } = props;
 
   return (
     <div className="add-parts">
@@ -10,7 +10,7 @@ function AddVideoButtons(props) {
       <span className="transition" onClick={addTransition}>
         <Favicon icon="plus" />
       </span>
-      <span className="export lead" onClick={exportVideo}>
+      <span className="export lead" onClick={openModal}>
         Export
       </span>
     </div>

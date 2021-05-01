@@ -119,8 +119,8 @@ def get_audio_length(path):
     if os.path.exists(path):
         audio = MP3(path)
         length = int(audio.info.length)
-        return {"m": int(length/60), "s": length % 61, "ms": length % 1}
-    return {"m": 0, "s": 0, "ms": 0}
+        return {"m": int(length/60), "s": length % 60, "ms": length % 1, "total": length}
+    return {"m": 0, "s": 0, "ms": 0, "total": 0}
 
 
 def get_cache_dir(file_id=open_file_id):
@@ -206,6 +206,7 @@ def get_file_info(id):
             script.append({
                 "type": "scene",
                 "number": int(ln),
+                "duration": get_scene_duration(int(ln), id)
             })
 
         if ln not in ["[intro]", "[outro]"]:
@@ -309,7 +310,7 @@ def add_to_script(type):
         elif t == "scene":
             new_scene_id = int(get_config(open_file_id, "next-scene-id"))
             to_insert = f"{new_scene_id:05d}"
-            ret.append({"type": "scene", "number": new_scene_id})
+            ret.append({"type": "scene", "number": new_scene_id, "duration": 0})
             scene_path = get_scene_dir(open_file_id, new_scene_id)
             if os.path.exists(scene_path):
                 shutil.rmtree(scene_path)
@@ -385,6 +386,20 @@ def get_scene_info(scene, file=None):
     script = parse_script(fscript)
     fscript.close()
 
+    duration = get_scene_duration(scene)
+    # cache_dir = get_cache_dir(file)
+    # duration = 0
+    # for i in range(len(script)):
+    #     part = script[i]
+    #     if part["text"]:
+    #         aud_path = cache_dir + f"/{scene:05d}-{i:05d}.mp3"
+    #         if os.path.exists(aud_path):
+    #             duration += get_audio_length(aud_path)["total"]
+    #             duration += part["wait"]
+    #         else:
+    #             duration = None
+    #             break
+
     image = None
     img_path = scene_dir+"/image.png"
     if os.path.exists(scene_dir+"/image.png"):
@@ -403,7 +418,36 @@ def get_scene_info(scene, file=None):
         "image_path": img_path,
         "script": script,
         "last_change": os.path.getmtime(scene_dir+"/script.txt"),
+        "duration": duration
     }
+
+
+def get_scene_duration(scene, file=None):
+    if file is None:
+        file = open_file_id
+
+    if isinstance(scene, dict):
+        script = scene["script"]
+    else:
+        scene_dir = get_scene_dir(file, scene)
+        fscript = open(scene_dir+"/script.txt")
+        script = parse_script(fscript)
+        fscript.close()
+
+    cache_dir = get_cache_dir(file)
+    duration = 0
+    for i in range(len(script)):
+        part = script[i]
+        if part["text"]:
+            aud_path = cache_dir + f"/{scene:05d}-{i:05d}.mp3"
+            if os.path.exists(aud_path):
+                duration += get_audio_length(aud_path)["total"]
+                duration += part["wait"]
+            else:
+                duration = None
+                break
+
+    return duration
 
 
 @eel.expose
@@ -598,6 +642,22 @@ def download_images(platform, target):
     shutil.make_archive(tmp_dir+f"/{target}", "zip", dl_dir)
     zip_path = tmp_dir+f"/{target}.zip"
     shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
+
+    return True
+
+
+@eel.expose
+def load_video_duration(document=None):
+    if document is None:
+        document = open_file_id
+
+    file_info = get_file_info(document)
+    try:
+        for s in file_info["script"]:
+            if s["type"] == "scene":
+                util.video.download_audios_for(s, get_cache_dir(document))
+    except:
+        return False
 
     return True
 

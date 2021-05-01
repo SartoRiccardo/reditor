@@ -285,8 +285,7 @@ def export_video_wrapped(file_id, out_dir, logger=None):
     bg_i = 0 if has_transitioned_once else 1
     clips[bg_i] = clips[bg_i]. \
         set_end(t). \
-        fadeout(VIDEO_FADE_TIME). \
-        fadein(VIDEO_FADE_TIME)
+        fadeout(VIDEO_FADE_TIME)
 
     if part_soundtrack:
         part_start = part_soundtrack.start

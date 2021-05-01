@@ -77,6 +77,11 @@ class Editor extends React.Component {
     document.removeEventListener("keydown");
   }
 
+  reloadFileData = async () => {
+    const fileInfo = await getFileInfo(this.state.fileInfo.id);
+    this.setState({ fileInfo });
+  }
+
   getScene = async number => {
     this.setState({ scene: await getSceneInfo(number) });
   }
@@ -203,6 +208,7 @@ class Editor extends React.Component {
             onTransitionAdd={this.addTransition}
             onSceneDeletion={this.deleteScene}
             onSwitchOrder={this.switchOrder}
+            reloadFileData={this.reloadFileData}
             onExportVideo={this.exportVideo} />
         </nav>
 

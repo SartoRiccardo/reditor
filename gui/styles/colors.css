@@ -37,6 +37,9 @@
     --red-darken-1: #e53935;
     --red-darken-2: #d32f2f;
     --red-darken-4: #b71c1c;
+
+    --pink-lighten-4: #f8bbd0;
+    --pink-lighten-1: #ec407a;
 }
 
 .white-text { color: white }

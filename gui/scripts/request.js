@@ -2,16 +2,16 @@
 /**
  * Gets a file's info.
  * @param  {int}       id the ID of the file to get.
- * @return {Document}     A list of file data (lazy).
+ * @return {Document}     A list of file data (not all data is loaded).
  */
 async function getFileInfo(id) {
-  const ret = await eel.get_file_info(id)()
-  if(ret) eel.open_file(id)
-  return ret
+  const ret = await eel.get_file_info(id)();
+  if(ret) eel.open_file(id);
+  return ret;
 }
 
 async function getFiles() {
-  return await eel.get_files()()
+  return await eel.get_files()();
 }
 
 /**
@@ -133,4 +133,8 @@ function gui_callback(evt) {
 
 async function downloadImages(platform, target, callback) {
   const zipFile = await eel.download_images(platform, target)(callback);
+}
+
+async function loadVideoDuration() {
+  return await eel.load_video_duration()()
 }

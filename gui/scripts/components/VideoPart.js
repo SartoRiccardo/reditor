@@ -8,11 +8,10 @@ class VideoPart extends React.Component {
   leaveSvg = () => this.setState({ hoveringSvg: false });
 
   render() {
-    let { type, text, number, onClick, deleteScene, onDrag, onDrop, scene_num } = this.props;
+    let { type, text, number, onClick, deleteScene, onDrag, onDrop } = this.props;
     let { hoveringSvg } = this.state;
 
     if(type === "transition") text = "Transition";
-    if(["scene", "active"].includes(type)) text = `Scene ${pad(scene_num, 2)}`;
 
     deleteScene = ["active", "transition"].includes(type) ? deleteScene : undefined;
     let icon = icons[type];
@@ -34,4 +33,12 @@ class VideoPart extends React.Component {
       </li>
     );
   }
+}
+
+function SongEnd(props) {
+  return (
+    <li className="soundtrack-end text-center">
+      Soundtrack end
+    </li>
+  );
 }
