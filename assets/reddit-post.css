@@ -1,0 +1,115 @@
+.white { color: white }
+
+#root {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: scale(2, 2) translate(-10%, -25%);
+    transform-origin: center;
+}
+
+.container {
+    border-radius: 4px;
+    padding-left: 40px;
+    padding-top: 8px;
+    background: white;
+    font-family: IBMPlexSans, Arial;
+    width: 600px;
+    position: relative;
+}
+.post-info {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    display: -ms-flexbox;
+    display: flex;
+    -ms-flex-flow: row nowrap;
+    flex-flow: row nowrap;
+    -ms-flex-align: start;
+    align-items: start;
+    margin: 0 8px 8px;
+    position: relative;
+    color: #787C7E;
+}
+.post-info b {
+    color: black;
+}
+.sub-img-container img {
+    border-radius: 50%;
+    display: inline-block;
+    height: 20px;
+    margin-right: 4px;
+    vertical-align: middle;
+    width: 20px;
+}
+
+h1 {
+    margin: 0 8px 8px;
+    font-size: 20px;
+}
+.content .post {
+    font-size: 14px;
+    margin-top: 12px;
+    margin-left: 8px;
+}
+
+.updoot-counter {
+
+    border-left: 4px solid transparent;
+    align-items: center;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    left: 0;
+    padding: 8px 4px 8px 0;
+    position: absolute;
+    top: 0;
+}
+.updoot-counter > div:nth-child(2) {
+    font-size: 12px;
+    margin: 4px 0;
+}
+.updoot-counter img {
+    width: 20px;
+    height: 20px;
+}
+.interact {
+    color: #878A8C;
+    display: flex;
+}
+.button span:nth-child(2) {
+    font-size: 12px;
+}
+.interact .button {
+    display: inline-block;
+    padding: 8px;
+    margin-right: 4px;
+}
+.interact .button span.icon {
+    margin-right: 6px;
+}
+.upvote-rate { margin-left: auto }
+
+span.icon {
+    font-family: redesignFont2020;
+    font-size: 20px;
+    font-weight: 400;
+    height: 20px;
+    line-height: 24px;
+    vertical-align: middle;
+    width: 20px;
+}
+span.icon.upvote::before { content: "\f2d1" }
+span.icon.downvote::before { content: "\f17c" }
+span.icon.comment::before { content: "\f15c" }
+span.icon.gift-award::before { content: "\f11f" }
+span.icon.options::before { content: "\f202" }
+span.icon.share::before { content: "\f24d" }
+
+.post span { display: inline-block; }
+
+#post-data {
+    font-family: Roboto;
+    font-size: 2rem;
+    width: 22%;
+}

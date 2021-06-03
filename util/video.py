@@ -146,7 +146,7 @@ class GuiLogger:
             to_send["finished"] = evt["finished"]
 
         if "error" in evt:
-            to_send["subtitle"] = "Something went wrong!"
+            to_send["subtitle"] = "Something went wrong: " + evt["error_msg"]
 
         if self.callback:
             self.callback(to_send)
@@ -164,7 +164,7 @@ def export_video(file_id, out_dir, gui_callback=None):
     try:
         export_video_wrapped(file_id, out_dir, logger=logger)
     except Exception as exc:
-        logger.log({"error": True})
+        logger.log({"error": True, "error_msg": str(exc)})
         raise exc
 
 
@@ -361,10 +361,16 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
 
     img_path = scene["image_path"]
     img_w, img_h = PIL.Image.open(img_path).size
-    new_h = VIDEO_SIZE[1]*0.9
-    new_w = new_h * img_w / img_h
-    img_raw = ImageClip(img_path). \
-        resize(height=new_h)
+    if img_w/img_h <= 16/9:
+        new_h = VIDEO_SIZE[1]*0.9
+        new_w = new_h * img_w / img_h
+        img_raw = ImageClip(img_path). \
+            resize(height=new_h)
+    else:
+        new_w = VIDEO_SIZE[0]*0.9
+        new_h = new_w * img_h / img_w
+        img_raw = ImageClip(img_path). \
+            resize(width=new_w)
 
     for i in range(len(scene["script"])):
         part = scene["script"][i]
@@ -428,8 +434,8 @@ def composite_videos(paths, out_file, logger="bar"):
                           temp_audiofile=temp_audio_path)
 
 
-def download_audios_for(s, cache_dir):
-    scene = util.io.get_scene_info(s["number"])
+def download_audios_for(s, cache_dir, document=None):
+    scene = util.io.get_scene_info(s["number"], file=document)
     for i in range(len(scene["script"])):
         part = scene["script"][i]
         if part["text"]:

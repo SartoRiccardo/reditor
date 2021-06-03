@@ -48,3 +48,23 @@
   background-color: rgba(0,0,0,0.75);
   color: white;
 }
+
+.button.selected {
+  border-width: 2px;
+  border-color: var(--blue-darken-1);
+  background-color: var(--blue-lighten-4);
+}
+
+.wait-btn-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.wait-btn-container > div {
+  text-align: center;
+  flex-basis: 20%;
+}
+
+.wait-btn-container > div:first-child {
+  padding: 0 !important;
+}

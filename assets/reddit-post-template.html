@@ -1,0 +1,185 @@
+<div id="root">
+    <div class="container">
+        <div class="content">
+            <div class="updoot-counter" style="width: 40px;">
+                <span class="icon upvote"></span>
+                <div><b>{upvotes}</b></div>
+                <span class="icon downvote"></span>
+            </div>
+
+            <div class="post-info">
+                <div class="sub-img-container">
+                    <img src="{sub-icon-url}">
+                </div>
+                <b>r/{sub-name}</b>
+                &nbsp;&nbsp;<span style="font-size: 6px;">•</span>&nbsp;
+                Posted by u/{author}&nbsp;&nbsp;1 day ago
+            </div>
+
+            <h1>{post-title}</h1>
+
+            <div class="post">{post-text}</div>
+
+            <div class="interact">
+                <div class="button">
+                    <span class="icon comment"></span>
+                    <span>{num-comments} comments</span>
+                </div>
+                <div class="button">
+                    <span class="icon gift-award"></span>
+                    <span>Award</span>
+                </div>
+                <div class="button">
+                    <span class="icon share"></span>
+                    <span>Share</span>
+                </div>
+                <div class="button">
+                    <span class="icon options"></span>
+                </div>
+                <div class="button upvote-rate">
+                    <span class="icon share white"></span>
+                    <span>{upvote-ratio}% Upvoted</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="post-data"></div>
+
+<script>
+    function getInfo() {
+        const splitAt = [". ", "? ", "! "];
+        const out = document.getElementById("post-data");
+        const container = document.getElementsByClassName("container")[0];
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width, height = containerRect.height,
+                containerX = containerRect.left + window.scrollX,
+                containerY = containerRect.top + window.scrollY;
+        const postLines = document.getElementsByClassName("post")[0].children;
+
+        if(height >= 1080) {
+            out.innerHTML = "FALSE";
+            return;
+        }
+
+        let scene = [];
+        const title = document.getElementsByTagName("H1")[0];
+        const titleRect = title.getBoundingClientRect();
+        scene.push({
+           crop: [0, 0, 100, (100*((titleRect.top-containerY)+titleRect.height)/height).toFixed(2)],
+           wait: 1,
+        });
+
+        for(let ptag_i = 0; ptag_i < postLines.length; ptag_i++) {
+            const pTag = postLines[ptag_i];
+            let line = pTag.innerHTML;
+            line = [ line ];
+            for(const splittingChar of splitAt) {
+                for(let i = line.length-1; i >= 0; i--) {
+                    let parts = line[i].split(splittingChar);
+                    for(let j = 0; j < parts.length-1; j++) {
+                        parts[j] += splittingChar;
+                    }
+                    line = [
+                        ...line.slice(0, i),
+                        ...parts,
+                        ...line.slice(i+1, line.length),
+                    ];
+
+                }
+            }
+
+            for(let i = 0; i < line.length; i++) {
+                const idLineStart = Math.random();
+                const idLineEnd = Math.random();
+                // const lBackup = line[i];
+
+                const words = line[i].trimRight().trimLeft().split(" ");
+
+                if(words.length > 1)
+                    line[i] = `
+                        <span id="${idLineStart}">${words[0]}</span>
+                        ${words.slice(1, words.length-1).join(" ")}
+                        <span id="${idLineEnd}">${words[words.length-1]}</span>
+                    `;
+                else
+                    line[i] = `
+                        <span id="${idLineStart}">
+                            <span id="${idLineEnd}">
+                                ${words[0]}
+                            </span>
+                        </span>
+                    `;
+                pTag.innerHTML = line.join("");
+
+                const beginWord = document.getElementById(idLineStart);
+                const endWord = document.getElementById(idLineEnd);
+
+                const beginCoords = getOffset(beginWord);
+                const startX = beginCoords.x - containerX;
+                const startY = beginCoords.y - containerY;
+
+                const endCoords = getOffset(endWord);
+                let endX, endY;
+                if(i < line.length-1)
+                    endX = endCoords.x - containerX;
+                else
+                    endX = width-endCoords.width;
+                endY = endCoords.y - containerY;
+
+                let realEndY;
+                if(ptag_i < postLines.length-1)
+                    realEndY = endY
+                else
+                    realEndY = height-endCoords.height;
+
+                // out.innerHTML += getDot(endCoords.x+endCoords.width, endCoords.y+endCoords.height, "red");
+                // out.innerHTML += getDot(beginCoords.x, beginCoords.y, "green");
+
+                if(endY === startY) {
+                    scene.push({
+                       crop: [0, 0, (100*(endX+endCoords.width)/width).toFixed(2), (100*(realEndY+endCoords.height)/height).toFixed(2)],
+                       wait: 1,
+                    });
+                }
+                else {
+                    scene.push({
+                       crop: [0, 0, 100, (100*realEndY/height).toFixed(2)],
+                       wait: 0,
+                    });
+                    scene.push({
+                       crop: [0, 0, (100*(endX+endCoords.width)/width).toFixed(2), (100*(realEndY+endCoords.height)/height).toFixed(2)],
+                       wait: 1,
+                    });
+                }
+            }
+        }
+        outputSceneData(scene, out);
+    }
+
+    function outputSceneData(scene, output) {
+        for(const s of scene) {
+            output.innerHTML += `${s.crop[0]}-${s.crop[1]}-${s.crop[2]}-${s.crop[3]}-${s.wait}<br>`;
+        }
+    }
+
+    function getDot(x, y, color) {
+        return `
+            <div style="z-index:999;width:2px;height:2px;position:fixed;top:${y}px;left:${x}px; background-color:${color};transform: translate(-50%, -50%)">
+            </div>
+        `;
+    }
+
+    function getOffset(element) {
+        const rect = element.getBoundingClientRect();
+        return {
+            x: rect.left + window.scrollX,
+            y: rect.top + window.scrollY,
+            width: rect.width,
+            height: rect.height,
+        };
+    }
+
+    getInfo();
+</script>

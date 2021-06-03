@@ -7,6 +7,7 @@ import hmac
 import datetime
 import praw
 import twitter
+import util.io
 
 
 http = urllib3.PoolManager()
@@ -20,11 +21,19 @@ MAX_RATIO = 3/2
 MIN_RATIO = 1/MAX_RATIO
 
 
-def subreddit_image_posts(sub):
+class ImageLink:
+    def __init__(self, path, is_url):
+        self.path = path
+        self.is_url = is_url
+
+
+def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
     """
     Fetches a subreddit's top submissions.
     :param sub: str: The name of the subreddit.
-    :return: str[]: A list of URLs leading to the images.
+    :param only_selfposts: boolean: Whether to only get selfposts/comments.
+    :param max_scenes: int: Max number of posts to download.
+    :return: ImageLink[]: A list of URLs leading to the images.
     """
     reddit = praw.Reddit(
         client_id=Reddit.client_id,
@@ -44,22 +53,32 @@ def subreddit_image_posts(sub):
     reddit.read_only = True
 
     try:
-        submission_lists = [reddit.subreddit(sub).top(), reddit.subreddit(sub).hot()]
+        submission_lists = [reddit.subreddit(sub).top("week"), reddit.subreddit(sub).hot()]
 
         ret = []
         for submissions in submission_lists:
             for s in submissions:
-                if hasattr(s, "post_hint") and s.post_hint == "image" and not s.stickied and \
-                        not s.over_18:
+                if len(ret) >= max_scenes:
+                    break
+
+                if s.over_18 or s.stickied:
+                    continue
+
+                if not only_selfposts and hasattr(s, "post_hint") and s.post_hint == "image":
                     source = s.preview["images"][0]["source"]
                     image_url = s.preview["images"][0]["source"]["url"]
                     if MIN_RATIO <= source["width"]/source["height"] <= MAX_RATIO and \
                             image_url not in ret:
-                        ret.append(image_url)
+                        ret.append(ImageLink(image_url, True))
+                elif s.is_self:
+                    image = util.io.reddit_to_image(s, sub)
+                    if image:
+                        ret.append(ImageLink(image, False))
 
         return ret
 
-    except:
+    except Exception as ex:
+        print(ex)
         return []
 
 
@@ -67,7 +86,7 @@ def twitter_user_images(user):
     """
     Fetches a twitter account's top submissions.
     :param user: str: The name of the twitter user.
-    :return: str[]: A list of URLs leading to the images.
+    :return: ImageLink[]: A list of URLs leading to the images.
     """
     api = twitter.Api(
         consumer_key=Twitter.consumer_key,
@@ -97,7 +116,7 @@ def twitter_user_images(user):
                     ratio = photo.sizes[size]["w"] / photo.sizes[size]["h"]
 
             if ratio and MIN_RATIO <= ratio <= MAX_RATIO:
-                ret.append(photo.media_url_https)
+                ret.append(ImageLink(photo.media_url_https, True))
     return ret
 
 
@@ -165,4 +184,3 @@ def get_tts_audio(text, voice):
     )
 
     return resp.data
-

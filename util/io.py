@@ -6,8 +6,16 @@ import base64
 from mutagen.mp3 import MP3
 import urllib3
 import util.requests
+import util.utils
 import time
 import traceback
+from PIL import Image
+import pytesseract
+import re
+from html2image import Html2Image
+from random import randint
+from tkinter import filedialog, Tk
+pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
 
 DATA_PATH = os.path.join(
@@ -38,6 +46,10 @@ next-soundtrack-id 2
 """[1:]
 open_file_id = None
 pool = urllib3.PoolManager()
+
+hti = None
+html_template_post = None
+css_post = None
 
 
 def is_number(s):
@@ -72,7 +84,13 @@ def parse_script(file):
 
         temp_parts.append(ln)
         if len(temp_parts) == chunk_size:
-            ret.append(ScenePart.part_to_object("".join(temp_parts)))
+            try:
+                ret.append(ScenePart.part_to_object("".join(temp_parts)))
+            except Exception as ex:
+                print("\n"*5)
+                print(ex)
+                print(ln, file.name)
+                raise ex
             temp_parts = []
             skip_next_line = True
     return ret
@@ -290,8 +308,10 @@ def open_file(id):
 
 
 @eel.expose
-def add_to_script(type):
-    fscript = open(get_project_dir(open_file_id)+"/script.txt")
+def add_to_script(type, document=None):
+    if document is None:
+        document = open_file_id
+    fscript = open(get_project_dir(document)+"/script.txt")
 
     script = []
     last_soundtrack_number = 1
@@ -308,30 +328,30 @@ def add_to_script(type):
     ret = []
     for t in type:
         if t == "soundtrack":
-            new_ost_id = int(get_config(open_file_id, "next-soundtrack-id"))
+            new_ost_id = int(get_config(document, "next-soundtrack-id"))
             to_insert = f"[ost]{new_ost_id:05d};"
             new_soundtrack = {**EMPTY_SOUNDTRACK}
             new_soundtrack["number"] = new_ost_id
             ret.append(new_soundtrack)
-            write_config(open_file_id, "next-soundtrack-id", new_ost_id+1)
+            write_config(document, "next-soundtrack-id", new_ost_id+1)
 
         elif t == "scene":
-            new_scene_id = int(get_config(open_file_id, "next-scene-id"))
+            new_scene_id = int(get_config(document, "next-scene-id"))
             to_insert = f"{new_scene_id:05d}"
             ret.append({"type": "scene", "number": new_scene_id, "duration": 0})
-            scene_path = get_scene_dir(open_file_id, new_scene_id)
+            scene_path = get_scene_dir(document, new_scene_id)
             if os.path.exists(scene_path):
                 shutil.rmtree(scene_path)
             os.mkdir(scene_path)
             open(scene_path+"/script.txt", "w").close()
-            write_config(open_file_id, "next-scene-id", new_scene_id+1)
+            write_config(document, "next-scene-id", new_scene_id+1)
 
         else:
             to_insert = "[transition]"
             ret.append({"type": "transition"})
         script.insert(-1, to_insert+"\n")
 
-    fscript = open(get_project_dir(open_file_id)+"/script.txt", "w")
+    fscript = open(get_project_dir(document)+"/script.txt", "w")
     for ln in script:
         fscript.write(ln)
     fscript.close()
@@ -363,8 +383,11 @@ def delete_file(id):
 
 
 @eel.expose
-def change_scene_info(scene, script_index, new_script):
-    fscene = open(get_scene_dir(open_file_id, scene)+"/script.txt")
+def change_scene_info(scene, script_index, new_script, document=None):
+    if document is None:
+        document = open_file_id
+
+    fscene = open(get_scene_dir(document, scene)+"/script.txt")
 
     parts = parse_script(fscene)
     fscene.close()
@@ -374,7 +397,7 @@ def change_scene_info(scene, script_index, new_script):
     else:
         parts.append(new_script)
 
-    fscene = open(get_scene_dir(open_file_id, scene)+"/script.txt", "w")
+    fscene = open(get_scene_dir(document, scene)+"/script.txt", "w")
     for i in range(len(parts)):
         p = parts[i]
         fscene.write(ScenePart.object_to_text(p))
@@ -394,7 +417,7 @@ def get_scene_info(scene, file=None):
     script = parse_script(fscript)
     fscript.close()
 
-    duration = get_scene_duration(scene)
+    duration = get_scene_duration(scene, file)
 
     image = None
     img_path = scene_dir+"/image.png"
@@ -447,8 +470,11 @@ def get_scene_duration(scene, file=None):
 
 
 @eel.expose
-def relocate_scene(old_i, new_i):
-    script_path = get_project_dir(open_file_id)+"/script.txt"
+def relocate_scene(old_i, new_i, document=None):
+    if document is None:
+        document = open_file_id
+
+    script_path = get_project_dir(document)+"/script.txt"
     fscript = open(script_path)
     script = [ln.strip() for ln in fscript]
     fscript.close()
@@ -482,8 +508,11 @@ def delete_script_part(scene, part_i):
 
 
 @eel.expose
-def delete_scene(scene_i):
-    script_path = get_project_dir(open_file_id)+"/script.txt"
+def delete_scene(scene_i, document=None):
+    if document is None:
+        document = open_file_id
+
+    script_path = get_project_dir(document)+"/script.txt"
     fscript = open(script_path)
 
     script = []
@@ -509,11 +538,11 @@ def delete_scene(scene_i):
     if to_delete:
         if "[" not in to_delete:
             scene_id = int(to_delete)
-            scene_path = get_scene_dir(open_file_id, scene_id)
+            scene_path = get_scene_dir(document, scene_id)
             if os.path.exists(scene_path):
                 shutil.rmtree(scene_path)
         elif to_delete.startswith("[ost]"):
-            ost_path = get_project_dir(open_file_id)+f"/soundtrack/{soundtrack_id:05d}.mp3"
+            ost_path = get_project_dir(document)+f"/soundtrack/{soundtrack_id:05d}.mp3"
             if os.path.exists(ost_path):
                 os.remove(ost_path)
 
@@ -538,18 +567,23 @@ def set_image(scene, image):
 
 
 @eel.expose
-def set_song(number, name, song_b64):
+def set_song(number, name, song_b64, is_path=False, document=None):
+    if document is None:
+        document = open_file_id
     if name.endswith(".mp3"):
         name = name[:-4]
 
-    song_path = get_project_dir(open_file_id) + f"/soundtrack/{number:05d}.mp3"
-    config, data = song_b64.split(",")
+    song_path = get_project_dir(document) + f"/soundtrack/{number:05d}.mp3"
 
-    fsong = open(song_path, "wb")
-    fsong.write(base64.b64decode(data.encode("ascii")))
-    fsong.close()
+    if is_path:
+        shutil.copy(song_b64, song_path)
+    else:
+        config, data = song_b64.split(",")
+        fsong = open(song_path, "wb")
+        fsong.write(base64.b64decode(data.encode("ascii")))
+        fsong.close()
 
-    script_dir = get_project_dir(open_file_id) + "/script.txt"
+    script_dir = get_project_dir(document) + "/script.txt"
     fscript = open(script_dir)
 
     new_script = []
@@ -614,10 +648,10 @@ def download_image(url, file_path):
 
 
 @eel.expose
-def download_images(platform, target):
+def download_images(platform, target, options={}):
     image_urls = []
     if platform == "reddit":
-        image_urls = util.requests.subreddit_image_posts(target)
+        image_urls = util.requests.subreddit_image_posts(target, only_selfposts=options["isSelfpostVideo"])
     elif platform == "twitter":
         image_urls = util.requests.twitter_user_images(target)
 
@@ -626,18 +660,98 @@ def download_images(platform, target):
 
     tmp_dir = DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download"
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
-    os.mkdir(tmp_dir)
+    if os.path.exists(dl_dir):
+        shutil.rmtree(dl_dir)
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
     os.mkdir(dl_dir)
 
-    for i in range(len(image_urls)):
-        url = image_urls[i]
-        download_image(url, dl_dir+f"/{i:05d}.png")
+    automatic = (options["isSelfpostVideo"] or platform == "askreddit") \
+            and options["bgmDir"]
 
-    shutil.make_archive(tmp_dir+f"/{target}", "zip", dl_dir)
-    zip_path = tmp_dir+f"/{target}.zip"
-    shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
+    if not automatic:
+        for i in range(len(image_urls)):
+            url = image_urls[i].path
+            is_url = image_urls[i].is_url
+            if is_url:
+                download_image(url, dl_dir+f"/{i:05d}.png")
+            else:
+                shutil.move(url, dl_dir+f"/{i:05d}.png")
+
+        shutil.make_archive(tmp_dir+f"/{target}", "zip", dl_dir)
+        zip_path = tmp_dir+f"/{target}.zip"
+        shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
+    else:
+        file = create_file(target+"-auto")
+        for i in range(len(image_urls)):
+            path = image_urls[i].path
+            if os.path.exists(path+".txt"):
+                scene = add_to_script("scene", document=file["id"])
+                scene_dir = get_scene_dir(file["id"], scene[0]["number"])
+                shutil.move(path, scene_dir+"/image.png")
+                shutil.move(path+".txt", scene_dir+"/script.txt")
+
+        load_video_duration(document=file["id"])
+        file_info = get_file_info(file["id"])
+
+        duration = 0
+        total_duration = 0
+        max_duration = 4 * 60
+        max_file_duration = options["maxDuration"] if options["maxDuration"] else 10000
+        soundtrack_dir = options["bgmDir"]
+        soundtracks = []
+        for root, _, files in os.walk(soundtrack_dir):
+            for f in files:
+                if f.endswith(".mp3"):
+                    soundtracks.append(os.path.join(root, f))
+
+        i = randint(0, len(soundtracks)-1)
+        soundtrack_number = 1
+        script_len = 1
+        chosen_soundtrack = soundtracks.pop(i)
+        soundtrack_len = get_audio_length(chosen_soundtrack)["total"]
+        song_name = chosen_soundtrack.split("/")[-1][:-4]
+        set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True, document=file["id"])
+        new_song_ids = []
+        for i in range(len(file_info["script"])):
+            s = file_info["script"][i]
+            if s["type"] == "scene":
+                s_len = s["duration"]
+                if total_duration+s_len > max_file_duration:
+                    for _ in range(len(file_info["script"])-i):
+                        delete_scene(i+1, document=file["id"])
+                    break
+
+                if duration+s_len >= max_duration or duration+s_len >= soundtrack_len-10:
+                    add_to_script("transition", document=file["id"])
+                    add_to_script("soundtrack", document=file["id"])
+                    soundtrack_number += 1
+                    rand_i = randint(0, len(soundtracks)-1)
+                    chosen_soundtrack = soundtracks.pop(rand_i)
+                    soundtrack_len = get_audio_length(chosen_soundtrack)["total"]
+                    song_name = chosen_soundtrack.split("/")[-1][:-4]
+                    set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True, document=file["id"])
+                    duration = 0
+                    new_song_ids.append(i)
+
+                    prev_scene = file_info["script"][i-1]
+                    prev_part = get_scene_info(prev_scene["number"], file=file["id"])["script"]
+                    prev_i = len(prev_part) - 1
+                    prev_part = prev_part[-1]
+                    prev_part["wait"] = 4
+                    change_scene_info(prev_scene["number"], prev_i, prev_part, document=file["id"])
+
+                duration += s_len
+                total_duration += s_len
+                script_len += 1
+
+        script_len += len(new_song_ids)*2
+        for i in range(len(new_song_ids)):
+            new_song_i = new_song_ids[i]+i*2 + 1
+            song_to_relocate = script_len - (len(new_song_ids)-i)*2 + 2
+            print(f"> RELOCATE {song_to_relocate} TO {new_song_i}")
+            relocate_scene(song_to_relocate, new_song_i, document=file["id"])
+            relocate_scene(song_to_relocate, new_song_i, document=file["id"])
 
     return True
 
@@ -651,11 +765,163 @@ def load_video_duration(document=None):
     try:
         for s in file_info["script"]:
             if s["type"] == "scene":
-                util.video.download_audios_for(s, get_cache_dir(document))
-    except:
+                util.video.download_audios_for(s, get_cache_dir(document), document=document)
+    except Exception as exc:
+        print("\n"*2, exc, "\n"*2)
         return False
 
     return True
+
+
+@eel.expose
+def detect_text(scene, crop, document=None):
+    if document is None:
+        document = open_file_id
+
+    img_path = get_scene_dir(document, scene) + "/image.png"
+    image = Image.open(img_path)
+    width, height = image.size
+    start_x = int(width*crop["x"] / 100)
+    start_y = int(height*crop["y"] / 100)
+    end_x = start_x + int(width*crop["w"] / 100)
+    end_y = start_y + int(height*crop["h"] / 100)
+    image = image.crop((start_x, start_y, end_x, end_y))
+
+    text = pytesseract.image_to_string(image, lang="eng", config="--psm 11") \
+        .replace("\n", " ")
+
+    substitutions = [
+        (" +", " "), ("(?:\*|”|\"|“|—|>|~)", ""), (":", "."), ("\|", "I"),
+        ("qt", "cutie"), ("3\.14", "pie"), ("mfw", "my face when"), ("tfw", "that feel when")
+    ]
+    for pre, sub in substitutions:
+        text = re.sub(pre, sub, text)
+
+    return text.strip()
+
+
+def reddit_to_image(submission, subreddit_name):
+    global hti, html_template_post, css_post
+
+    tmp_dir = DATA_PATH + "/tmp"
+    dl_dir = tmp_dir + "/download-selfposts"
+    if not hti:
+        hti = Html2Image(custom_flags="--log-level=OFF")
+        if os.path.exists(dl_dir):
+            shutil.rmtree(dl_dir)
+        if not os.path.exists(tmp_dir):
+            os.mkdir(tmp_dir)
+        os.mkdir(dl_dir)
+
+        hti.output_path = dl_dir
+    if not html_template_post:
+        fin = open("./assets/reddit-post-template.html")
+        html_template_post = fin.read()
+        fin.close()
+    if not css_post:
+        fin = open("./assets/reddit-post.css")
+        css_post = fin.read()
+        fin.close()
+
+    replacements = [("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\"")]
+
+    filename = util.utils.randstr(10) + ".png"
+    body = submission.selftext
+    for pre, after in replacements:
+        body = re.sub(pre, after, body)
+    body = body.split("\n\n")
+    for i in range(len(body)):
+        body[i] = "<p>" + body[i].replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>") + "</p>"
+    body = "\n".join(body)
+
+    score = submission.score
+    if score >= 1000:
+        score = f"{int(score/1000)}.{int(score/100)%10}k"
+    else:
+        score = str(score)
+
+    html = html_template_post.replace("{upvotes}", score) \
+            .replace("{author}", submission.author.name) \
+            .replace("{sub-name}", subreddit_name) \
+            .replace("{post-title}", submission.title) \
+            .replace("{post-text}", body) \
+            .replace("{upvote-ratio}", str(int(submission.upvote_ratio*100))) \
+            .replace("{num-comments}", str(submission.num_comments)) \
+            .replace("{sub-icon-url}", submission.subreddit.icon_img)
+
+    hti.screenshot(html_str=html, css_str=css_post, save_as=filename)
+
+    full_path = dl_dir + "/" + filename
+    image = Image.open(full_path).convert("RGBA")
+    width, height = image.size
+    for y in range(1, height):
+        if image.getpixel((int(width/2), y))[3] != 0:
+            break
+    scene = image.crop((0, 0, 512, height))
+    image = image.crop((512, y, 1792, height-y))
+    image.save(full_path)
+
+    text = pytesseract.image_to_string(scene, lang="eng", config="--psm 11")
+    if "FALSE" in text:
+        return None
+    raw_scene = [row.split("-") for row in text.split("\n\n")]
+
+    script = get_script(submission.selftext)
+    script.insert(0, submission.title)
+    script_i = 0
+    try:
+        raw_script = []
+        for s in raw_scene:
+            s = [float(num) for num in s]
+            x, y, w, h, wait = s
+            scene_obj = {
+                "text": "" if wait == 0 else script[script_i],
+                "voice": "male-1",
+                "crop": {"x": x, "y": y, "w": w, "h": h},
+                "wait": wait,
+            }
+            if wait > 0:
+                script_i += 1
+            raw_script.append(ScenePart.object_to_text(scene_obj))
+        raw_script = "\n\n".join(raw_script)
+
+        fout = open(full_path+".txt", "w")
+        fout.write(raw_script)
+        fout.close()
+    except:
+        pass
+
+    return full_path
+
+
+def get_script(text):
+    text = text.split("\n\n")
+    split_at = [". ", "? ", "! "]
+    for c in split_at:
+        length = len(text)
+        for i_neg in range(length):
+            i = length - 1 - i_neg
+            text[i] = text[i].split(c)
+            for j in range(len(text[i])):
+                if j != len(text[i]) - 1:
+                    text[i][j] += c
+            text = text[:i] + text[i] + text[i + 1:]
+
+    text_tmp = []
+    for t in text:
+        if len(t.strip()) > 0:
+            text_tmp.append(t.replace("\n", ""))
+    return text_tmp
+
+
+@eel.expose
+def get_full_path():
+    root = Tk()
+    root.withdraw()
+    root.wm_attributes('-topmost', 1)
+    folder = filedialog.askdirectory(title="Select BGM folder")
+    root.update()
+    return folder
 
 
 init()

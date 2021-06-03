@@ -1,10 +1,17 @@
 
 class MainMenu extends React.Component {
+  platformSpecific = {
+    reddit: { isSelfpostVideo: false, bgmDir: null, maxDuration: 60*11 },
+    twitter: {},
+    askReddit: { bgmDir: null, maxDuration: 60*12 },
+  }
+
   state = {
     modalOpen: false,
     fileName: "",
     target: "",
     platform: "reddit",
+    platformSpecific: this.platformSpecific.reddit,
 
     loading: false,
     success: false,
@@ -19,7 +26,18 @@ class MainMenu extends React.Component {
   }
 
   change = evt => {
-    this.setState({ [evt.target.name]: evt.target.value });
+    let change = { [evt.target.name]: evt.target.value };
+    if(evt.target.name == "platform") change.platformSpecific = this.platformSpecific[evt.target.value];
+    this.setState(change);
+  }
+
+  changeSpecific = evt => {
+    this.setState({
+        platformSpecific: {
+            ...this.state.platformSpecific,
+            [evt.target.name]: evt.target.value,
+        },
+    });
   }
 
   submit = evt => {
@@ -43,24 +61,41 @@ class MainMenu extends React.Component {
 
   downloadImages = evt => {
     evt.preventDefault();
-    const { platform, target } = this.state;
+    const { platform, target, platformSpecific } = this.state;
     if(!platform) return;
-    downloadImages(platform, target, success => {
+    downloadImages(platform, target, platformSpecific, success => {
       if(success) this.setState({ loading: false, success: true, error: false });
       else this.setState({ loading: false, success: false, error: true });
     });
     this.setState({ loading: true, success: false, error: false });
   }
 
+  getBGMDir = async evt => {
+    evt.preventDefault();
+    evt.stopPropagation();
+    const bgmDir = await eel.get_full_path()();
+    this.setState({
+        platformSpecific: { ...this.state.platformSpecific, bgmDir },
+    })
+  }
+
   render() {
     const { files, select, makeFile } = this.props;
-    const { modalOpen, fileName, platform, target, loading, success, error } = this.state;
+    const { modalOpen, fileName, platform, target, loading, success, error,
+        platformSpecific } = this.state;
 
     let prefix, placeholder;
     switch(platform) {
       case "twitter": prefix = "@"; placeholder = "OldMemeArchive"; break;
       case "reddit": prefix = "r/"; placeholder = "MinecraftMemes"; break;
+      case "askreddit": prefix = ""; placeholder = "nq9fjc"; break;
       default: prefix = null; placeholder = "";
+    }
+
+    let bgmDirName = "";
+    if("bgmDir" in platformSpecific && platformSpecific.bgmDir) {
+      const bgmDirSplit = platformSpecific.bgmDir.split("/");
+      bgmDirName = bgmDirSplit[bgmDirSplit.length - 1];
     }
 
     return (
@@ -89,8 +124,35 @@ class MainMenu extends React.Component {
                     onChange={this.change} value={platform}>
                   <option value="reddit">Reddit</option>
                   <option value="twitter">Twitter</option>
+                  <option value="askreddit">AskReddit</option>
                 </select>
               </div>
+
+              {
+                platform == "reddit" &&
+                <React.Fragment>
+                  <div className="input-group white-text d-flex justify-content-center">
+                    <div>
+                      <input className="form-check-input" type="checkbox" value={platformSpecific.isSelfpostVideo} id="selfpostCheck"
+                          onChange={this.changeSpecific} name="isSelfpostVideo" />
+                      <label className="form-check-label" htmlFor="selfpostCheck">
+                        Is Selfpost video
+                      </label>
+                    </div>
+                  </div>
+                  {
+                    platformSpecific.isSelfpostVideo &&
+                    <React.Fragment>
+                      <div className="d-flex justify-content-center">
+                        <button onClick={this.getBGMDir} className="btn btn-primary">
+                          Select BGM Dir
+                        </button>
+                      </div>
+                      <p className="text-center white-text">{bgmDirName}</p>
+                    </React.Fragment>
+                  }
+                </React.Fragment>
+              }
 
               <div className="d-flex justify-content-center">
                 <button disabled={loading} type="submit" className="btn btn-primary">Download</button>

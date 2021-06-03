@@ -1,4 +1,15 @@
 
+const KEYCODES = {
+  CMD_R: 91,
+  CMD_L: 93,
+  T: 84,
+  A: 65,
+  L: 76,
+  K: 75,
+}
+
+const VOLUME_BTNS = [0, 1, 2, 3, 4, 5];
+
 class Scene extends React.Component {
   img = null;
   newPageDefault = {
@@ -56,8 +67,104 @@ class Scene extends React.Component {
     }
   }
 
+  cmdDown = false;
+  keydownHandler = evt => {
+    if(evt.keyCode === KEYCODES.CMD_R || evt.keyCode === KEYCODES.CMD_L) {
+      this.cmdDown = true;
+    }
+
+    if(this.cmdDown) {
+      let cmdExecuted = false;
+      switch(evt.keyCode) {
+        /* Text detection */
+        case KEYCODES.T:
+          cmdExecuted = true;
+          this.detectText();
+          break;
+
+        /* Select all the image */
+        case KEYCODES.A:
+          cmdExecuted = true;
+          this.selectAll();
+          break;
+
+        /* Wait time handlers */
+        case KEYCODES.L:
+          cmdExecuted = true;
+          this.changeWait("next");
+          break;
+
+        case KEYCODES.K:
+          cmdExecuted = true;
+          this.changeWait("prev");
+          break;
+      }
+      if(cmdExecuted) evt.preventDefault();
+    }
+  }
+  keyUpHandler = evt => {
+    if(evt.keyCode === KEYCODES.CMD_R || evt.keyCode === KEYCODES.CMD_L) {
+      this.cmdDown = false;
+    }
+  }
+
+  detectText = async () => {
+    const { scene, selectionCoords, page } = this.state;
+    const text = await detectText(scene.number, selectionCoords);
+
+    const newScript = scene.script.map((sc, i) => {
+      if(i !== page) return sc;
+      return { ...sc, text };
+    });
+
+    if(await changeSceneInfo(scene.number, page, newScript[page])) {
+      this.setState({
+        text, scene: { ...scene, script: newScript },
+      });
+    }
+  }
+
+  selectAll = async () => {
+    const { page, scene } = this.state;
+
+    const newScript = scene.script.map((sc, i) => {
+      if(i !== page) return sc;
+      return { ...sc, crop: { x: 0, y: 0, w: 100, h: 100 } };
+    });
+
+    if(await changeSceneInfo(this.state.scene.number, page, newScript[page])) {
+      this.setState({
+        selectionCoords: { x: 0, y: 0, w: 100, h: 100 },
+        x: 0, y: 0, w: 100, h: 100,
+        scene: { ...scene, script: newScript },
+      });
+    }
+  }
+
+  changeWait = change => {
+    const { wait } = this.state;
+    if(change === "prev" && wait === VOLUME_BTNS[0]
+        || change === "next" && wait === VOLUME_BTNS[VOLUME_BTNS.length-1]) return;
+
+    const currentWaitIndex = VOLUME_BTNS.indexOf(parseInt(wait));
+    const offset = change === "prev" ? -1 : 1;
+    this.change({ target: { name: "wait", value: VOLUME_BTNS[currentWaitIndex+offset] } })
+  }
+
+  componentDidMount(props) {
+    if(this.container) {
+      this.container.addEventListener("keydown", this.keydownHandler);
+      this.container.addEventListener("keyup", this.keyUpHandler);
+      this.container.focus();
+    }
+  }
+
   componentWillUnmount() {
     this.unmounted = true;
+    if(this.container) {
+      this.container.removeEventListener("keydown", this.keydownHandler);
+      this.container.removeEventListener("keyup", this.keyUpHandler);
+    }
   }
 
   selectionStart = evt => {
@@ -261,7 +368,7 @@ class Scene extends React.Component {
 
     return scene ?
     (
-      <div className="container pb-5">
+      <div className="container pb-5" tabIndex="0" ref={ref => this.container = ref} style={{outline: "none"}}>
         <h1 className="mt-3 mb-0 text-center">
           Scene {pad(scene.number, 2)}
         </h1>
@@ -301,6 +408,17 @@ class Scene extends React.Component {
                 </select>
               </div>
 
+              <div className="my-3 wait-btn-container">
+                {
+                  VOLUME_BTNS.map(amount =>
+                    <div className={"button" + (wait == amount ? " selected" : "")} key={amount}
+                        onClick={() => this.change({ target: { value: amount, name: "wait" } })}>
+                      { amount === 0 ? "No Pause" : `${amount}s` }
+                    </div>
+                  )
+                }
+              </div>
+              {/*
               <div className="input-group my-3">
                 <div className="input-group-prepend">
                   <label className="input-group-text" htmlFor="inputGroupSelect01">Pause (s)</label>
@@ -308,6 +426,7 @@ class Scene extends React.Component {
                 <input type="number" className="form-control" placeholder="Pause in seconds..."
                   onChange={this.change} value={wait} name="wait" />
               </div>
+              */}
             </form>
 
             {

@@ -144,7 +144,7 @@ class Navbar extends React.Component {
             {
               totalVideoLength !== null &&
               <li className="video-duration">
-                Duration: {pad(Math.round(totalVideoLength/60), 2)}:{pad(Math.round(totalVideoLength%60), 2)}
+                Duration: {pad(Math.floor(totalVideoLength/60), 2)}:{pad(Math.round(totalVideoLength%60), 2)}
               </li>
             }
           </ul>

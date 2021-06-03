@@ -131,10 +131,14 @@ function gui_callback(evt) {
   actualGuiCallback(evt)
 }
 
-async function downloadImages(platform, target, callback) {
-  const zipFile = await eel.download_images(platform, target)(callback);
+async function downloadImages(platform, target, platformSpecific, callback) {
+  const zipFile = await eel.download_images(platform, target, platformSpecific)(callback);
 }
 
 async function loadVideoDuration() {
-  return await eel.load_video_duration()()
+  return await eel.load_video_duration()();
+}
+
+async function detectText(scene, crop) {
+  return await eel.detect_text(scene, crop)();
 }
