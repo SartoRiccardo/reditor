@@ -15,6 +15,7 @@ import re
 from html2image import Html2Image
 from random import randint
 from tkinter import filedialog, Tk
+import json
 pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
 
@@ -50,6 +51,8 @@ pool = urllib3.PoolManager()
 hti = None
 html_template_post = None
 css_post = None
+html_template_comment = None
+css_comment = None
 
 
 def is_number(s):
@@ -654,6 +657,11 @@ def download_images(platform, target, options={}):
         image_urls = util.requests.subreddit_image_posts(target, only_selfposts=options["isSelfpostVideo"])
     elif platform == "twitter":
         image_urls = util.requests.twitter_user_images(target)
+    elif platform == "askreddit":
+        if "http" in target:
+            id_re = r"comments\/(.+?)\/"
+            target = re.search(id_re, target).group(1)
+        image_urls = util.requests.post_comments(target)
 
     if len(image_urls) == 0:
         return False
@@ -666,8 +674,9 @@ def download_images(platform, target, options={}):
         os.mkdir(tmp_dir)
     os.mkdir(dl_dir)
 
-    automatic = (options["isSelfpostVideo"] or platform == "askreddit") \
-            and options["bgmDir"]
+    automatic = (platform == "reddit" and options["isSelfpostVideo"]
+                 or platform == "askreddit") \
+                 and options["bgmDir"]
 
     if not automatic:
         for i in range(len(image_urls)):
@@ -697,7 +706,7 @@ def download_images(platform, target, options={}):
         duration = 0
         total_duration = 0
         max_duration = 4 * 60
-        max_file_duration = options["maxDuration"] if options["maxDuration"] else 10000
+        max_file_duration = options["maxDuration"] if options["maxDuration"] else 11*60
         soundtrack_dir = options["bgmDir"]
         soundtracks = []
         for root, _, files in os.walk(soundtrack_dir):
@@ -792,7 +801,8 @@ def detect_text(scene, crop, document=None):
 
     substitutions = [
         (" +", " "), ("(?:\*|”|\"|“|—|>|~)", ""), (":", "."), ("\|", "I"),
-        ("qt", "cutie"), ("3\.14", "pie"), ("mfw", "my face when"), ("tfw", "that feel when")
+        ("qt", "cutie"), ("3\.14", "pie"), ("mfw", "my face when"), ("tfw", "that feel when"),
+        ("https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)", "this link")
     ]
     for pre, sub in substitutions:
         text = re.sub(pre, sub, text)
@@ -823,7 +833,11 @@ def reddit_to_image(submission, subreddit_name):
         css_post = fin.read()
         fin.close()
 
-    replacements = [("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\"")]
+    replacements = [
+        ("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\""),
+        ("https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)",
+         "this link")
+    ]
 
     filename = util.utils.randstr(10) + ".png"
     body = submission.selftext
@@ -864,7 +878,7 @@ def reddit_to_image(submission, subreddit_name):
     text = pytesseract.image_to_string(scene, lang="eng", config="--psm 11")
     if "FALSE" in text:
         return None
-    raw_scene = [row.split("-") for row in text.split("\n\n")]
+    raw_scene = [row.split("-") for row in re.split("\n{2,}", text)]
 
     script = get_script(submission.selftext)
     script.insert(0, submission.title)
@@ -894,8 +908,107 @@ def reddit_to_image(submission, subreddit_name):
     return full_path
 
 
+def reddit_comment_to_image(forest):
+    global hti, html_template_comment, css_comment
+
+    tmp_dir = DATA_PATH + "/tmp"
+    dl_dir = tmp_dir + "/download-selfposts"
+    if not hti:
+        hti = Html2Image(custom_flags="--log-level=OFF")
+        if os.path.exists(dl_dir):
+            shutil.rmtree(dl_dir)
+        if not os.path.exists(tmp_dir):
+            os.mkdir(tmp_dir)
+        os.mkdir(dl_dir)
+
+        hti.output_path = dl_dir
+    if not html_template_comment:
+        fin = open("./assets/reddit-comment-template.html")
+        html_template_comment = fin.read()
+        fin.close()
+    if not css_comment:
+        fin = open("./assets/reddit-comment.css")
+        css_comment = fin.read()
+        fin.close()
+
+    forest = polish_comments(forest)
+    filename = util.utils.randstr(10) + ".png"
+    html = html_template_comment.replace("{comment-json-inject}", json.dumps(forest))
+    hti.screenshot(html_str=html, css_str=css_comment, save_as=filename)
+
+    full_path = dl_dir + "/" + filename
+    image = Image.open(full_path).convert("RGBA")
+    width, height = image.size
+    for y in range(1, height):
+        if image.getpixel((int(width/2), y))[3] != 0:
+            break
+    scene = image.crop((0, 0, 498, height))
+    image = image.crop((498, y, 1818, height-y))
+    image.save(full_path)
+
+    text = pytesseract.image_to_string(scene, lang="eng", config="--psm 11")
+    if "FALSE" in text:
+        return None
+    raw_scene = [row.split("-") for row in re.split("\n{2,}", text)]
+
+    script = get_script_comment(forest)
+    script_i = 0
+    try:
+        raw_script = []
+        for s in raw_scene:
+            s = [float(num) for num in s]
+            x, y, w, h, wait = s
+            scene_obj = {
+                "text": "" if wait == 0 else script[script_i],
+                "voice": "male-1",
+                "crop": {"x": x, "y": y, "w": w, "h": h},
+                "wait": wait,
+            }
+            if wait > 0:
+                script_i += 1
+            raw_script.append(ScenePart.object_to_text(scene_obj))
+        raw_script = "\n\n".join(raw_script)
+
+        fout = open(full_path+".txt", "w")
+        fout.write(raw_script)
+        fout.close()
+    except:
+        pass
+
+    return full_path
+
+
+def polish_comments(forest):
+    def replace_with_group(match):
+        return match.group(1)
+
+    replacements = [
+        ("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\""),
+        ("\\[(.+?)\\]\\(.+?\\)", replace_with_group), ("\\. \\. \\.", "..."),
+    ]
+    for pre, after in replacements:
+        forest["body"] = re.sub(pre, after, forest["body"])
+    for i in range(len(forest["replies"])):
+        forest["replies"][i] = polish_comments(forest["replies"][i])
+    return forest
+
+
+def get_script_comment(forest):
+    ret = get_script(forest["body"])
+    for rep in forest["replies"]:
+        ret += get_script_comment(rep)
+    return ret
+
+
 def get_script(text):
-    text = text.split("\n\n")
+    replacements = [
+        ("ftw", "for the win"), ("mfw", "my face when"), ("tfw", "that feel when"),
+        ("qt", "cutie"), ("3\\.14", "pi"), (">", ""),
+    ]
+    text = de_emojify(text)
+    for pre, after in replacements:
+        text = re.sub(pre, after, text, flags=re.IGNORECASE)
+    text = re.split("\n{2,}", text)
     split_at = [". ", "? ", "! "]
     for c in split_at:
         length = len(text)
@@ -922,6 +1035,17 @@ def get_full_path():
     folder = filedialog.askdirectory(title="Select BGM folder")
     root.update()
     return folder
+
+
+# https://stackoverflow.com/questions/33404752/removing-emojis-from-a-string-in-python
+def de_emojify(text):
+    regrex_pattern = re.compile(pattern="["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           "]+", flags=re.UNICODE)
+    return regrex_pattern.sub(r'', text)
 
 
 init()

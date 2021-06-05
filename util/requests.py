@@ -27,6 +27,43 @@ class ImageLink:
         self.is_url = is_url
 
 
+class IntVar:
+    def __init__(self, val=0):
+        self.val = val
+
+    def __add__(self, other):
+        return self.val + other
+
+    def __iadd__(self, other):
+        self.val += other
+        return self
+
+    def __sub__(self, other):
+        return self.val - other
+
+    def __isub__(self, other):
+        self.val -= other
+        return self
+
+    def __gt__(self, other):
+        return self.val > other
+
+    def __ge__(self, other):
+        return self.val >= other
+
+    def __eq__(self, other):
+        return self.val == other
+
+    def __lt__(self, other):
+        return self.val < other
+
+    def __le__(self, other):
+        return self.val <= other
+
+    def __str__(self):
+        return str(self.val)
+
+
 def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
     """
     Fetches a subreddit's top submissions.
@@ -80,6 +117,122 @@ def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
     except Exception as ex:
         print(ex)
         return []
+
+
+def post_comments(thread_id):
+    """
+    Fetches a subreddit's top submissions.
+    :param thread_id: str: The ID of the thread.
+    :return: ImageLink[]: A list of URLs leading to the images.
+    """
+    reddit = praw.Reddit(
+        client_id=Reddit.client_id,
+        client_secret=Reddit.client_secret,
+        user_agent=Reddit.user_agent,
+        check_for_updates="False",
+        comment_kind="t1",
+        message_kind="t4",
+        redditor_kind="t2",
+        submission_kind="t3",
+        subreddit_kind="t5",
+        trophy_kind="t6",
+        oauth_url="https://oauth.reddit.com",
+        reddit_url="https://www.reddit.com",
+        short_url="https://redd.it"
+    )
+    reddit.read_only = True
+
+    try:
+        ret = []
+        submission = reddit.submission(thread_id)
+        path = util.io.reddit_to_image(submission, submission.subreddit.id)
+        if path:
+            ret.append(ImageLink(path, is_url=False))
+
+        comments = get_simplified_comments(submission.comments)
+        for cmt in comments:
+            path = util.io.reddit_comment_to_image(cmt)
+            if path:
+                ret.append(ImageLink(path, is_url=False))
+
+        return ret
+
+    except Exception as ex:
+        print(ex)
+        return []
+
+
+def get_simplified_comments(forest, max_comment_roots=100, max_comments_per_tree=5):
+    """
+    Recursive function that returns a simplified version of a comment.
+    :param forest: CommentForest: the forest to simplify.
+    :param max_comment_roots: int: The max base comments.
+    :param max_comments_per_tree: int: The max comments every tree can have.
+                                        Includes branches, not only leaves.
+                                        If none, equal to max_comment_roots.
+    :return: dict
+    """
+    if max_comments_per_tree is None:
+        max_comments_per_tree = max_comment_roots
+
+    ret = []
+    comments = 0
+    for comment in forest:
+        if comments >= max_comment_roots:
+            break
+
+        if not isinstance(comment, praw.reddit.models.MoreComments):
+            name = "[deleted]"
+            pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
+            if comment.author:
+                name = comment.author.name
+                pfp = comment.author.icon_img
+            ret.append({
+                "author": name,
+                "author_pfp": pfp,
+                "body": comment.body,
+                "score": comment.score,
+                "replies": get_simplified_nested_comments(
+                    comment.replies,
+                    max_comments_per_tree,
+                )
+            })
+
+        comments += 1
+
+    return ret
+
+
+def get_simplified_nested_comments(forest, max_comments, current_comments=None, depth=1):
+    if current_comments is None:
+        current_comments = IntVar(1)
+
+    ret = []
+    for comment in forest:
+        if current_comments >= max_comments:
+            break
+
+        if not isinstance(comment, praw.reddit.models.MoreComments):
+            current_comments += 1
+            name = "[deleted]"
+            pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
+            if comment.author:
+                name = comment.author.name
+                pfp = comment.author.icon_img
+            ret.append({
+                "author": name,
+                "author_pfp": pfp,
+                "body": comment.body,
+                "score": comment.score,
+                "replies": get_simplified_nested_comments(
+                    comment.replies,
+                    max_comments,
+                    current_comments=current_comments,
+                    depth=depth+1
+                )
+            })
+
+    return ret
 
 
 def twitter_user_images(user):

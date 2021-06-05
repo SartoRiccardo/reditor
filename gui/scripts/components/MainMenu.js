@@ -3,7 +3,7 @@ class MainMenu extends React.Component {
   platformSpecific = {
     reddit: { isSelfpostVideo: false, bgmDir: null, maxDuration: 60*11 },
     twitter: {},
-    askReddit: { bgmDir: null, maxDuration: 60*12 },
+    askreddit: { bgmDir: null, maxDuration: 60*12 },
   }
 
   state = {
@@ -129,7 +129,7 @@ class MainMenu extends React.Component {
               </div>
 
               {
-                platform == "reddit" &&
+                platform === "reddit" &&
                 <React.Fragment>
                   <div className="input-group white-text d-flex justify-content-center">
                     <div>
@@ -151,6 +151,18 @@ class MainMenu extends React.Component {
                       <p className="text-center white-text">{bgmDirName}</p>
                     </React.Fragment>
                   }
+                </React.Fragment>
+              }
+
+              {
+                platform === "askreddit" &&
+                <React.Fragment>
+                  <div className="d-flex justify-content-center">
+                    <button onClick={this.getBGMDir} className="btn btn-primary">
+                      Select BGM Dir
+                    </button>
+                  </div>
+                  <p className="text-center white-text">{bgmDirName}</p>
                 </React.Fragment>
               }
 

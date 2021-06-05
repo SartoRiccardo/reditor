@@ -1,53 +1,88 @@
+
 <div id="root">
     <div class="container">
-        <div class="content">
-            <div class="updoot-counter" style="width: 40px;">
-                <span class="icon upvote"></span>
-                <div><b>{upvotes}</b></div>
-                <span class="icon downvote"></span>
-            </div>
-
-            <div class="post-info">
-                <div class="sub-img-container">
-                    <img src="{sub-icon-url}">
-                </div>
-                <b>r/{sub-name}</b>
-                &nbsp;&nbsp;<span style="font-size: 6px;">•</span>&nbsp;
-                Posted by u/{author}&nbsp;&nbsp;1 day ago
-            </div>
-
-            <h1>{post-title}</h1>
-
-            <div class="post">{post-text}</div>
-
-            <div class="interact">
-                <div class="button">
-                    <span class="icon comment"></span>
-                    <span>{num-comments} comments</span>
-                </div>
-                <div class="button">
-                    <span class="icon gift-award"></span>
-                    <span>Award</span>
-                </div>
-                <div class="button">
-                    <span class="icon share"></span>
-                    <span>Share</span>
-                </div>
-                <div class="button">
-                    <span class="icon options"></span>
-                </div>
-                <div class="button upvote-rate">
-                    <span class="icon share white"></span>
-                    <span>{upvote-ratio}% Upvoted</span>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
 <div id="post-data"></div>
 
 <script>
+    const commentData = {comment-json-inject};
+
+
+    const commentTemplate = `
+        <div class="comment-container">
+            <div class="sidebar">
+                <div class="user-avatar">
+                    <div class="inner">
+                        <div class="avatar-background"></div>
+                        <img src="{avatar-url}" style="{custom-img-style}">
+                    </div>
+                </div>
+
+                <div class="thread-line-container">
+                    <div class="thread-line"></div>
+                </div>
+            </div>
+
+            <div className="comment-right-container">
+                <div class="comment">
+                    <div class="header">
+                        {author}&nbsp;
+                        <span class="gray-text">1 day ago</span>
+                    </div>
+                    <div class="content">
+                        {post-text}
+                    </div>
+                    <div class="interact">
+                        <div class="upvote-buttons">
+                            <span class="icon upvote"></span>
+                            <span class="upvote-count black-text">{upvotes}</span>
+                            <span class="icon downvote"></span>
+                        </div>
+                        <div class="answer">
+                            <span class="icon comment"></span>
+                            <span class="upvote-count m-0" style="margin-left: -2px;">Reply</span>
+                        </div>
+                        <div class="premia">
+                            <span class="icon comment white"></span>
+                            <span class="upvote-count m-0" style="height: 100%; margin-left: -30px;">
+                                <span>Award</span>
+                                <span>Share</span>
+                                <span>Report</span>
+                                <span>Save</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reply-container">
+                    {replies-html}
+                </div>
+            </div>
+        </div>
+        `;
+
+    function generateComments({ author, author_pfp, body, replies, score }) {
+        if(score >= 1000) {
+            score = `${Math.floor(score/1000)}.${Math.floor((score%1000)/100)}k`
+        }
+
+        let bodyHTML = `<p class="to-narrate">${body}</p>`.replace(/\n{2,}/gm, '</p><p class="to-narrate">');
+        let ret = commentTemplate.replace("{author}", author)
+                .replace("{avatar-url}", author_pfp)
+                .replace("{post-text}", bodyHTML)
+                .replace("{upvotes}", score);
+        if(author_pfp.includes("_snoo")) ret = ret.replace("{custom-img-style}", "");
+        else ret = ret.replace("{custom-img-style}", "transform: scale(1)");
+
+        let repliesHTML = "";
+        for(const r of replies) {
+            repliesHTML += generateComments(r);
+        }
+        ret = ret.replace("{replies-html}", repliesHTML);
+        return ret;
+    }
     function getInfo() {
         const splitAt = [". ", "? ", "! "];
         const out = document.getElementById("post-data");
@@ -56,7 +91,7 @@
         const width = containerRect.width, height = containerRect.height,
                 containerX = containerRect.left + window.scrollX,
                 containerY = containerRect.top + window.scrollY;
-        const postLines = document.getElementsByClassName("post")[0].children;
+        const postLines = document.getElementsByClassName("to-narrate");
 
         if(height >= 1080) {
             out.innerHTML = "FALSE";
@@ -177,5 +212,31 @@
         };
     }
 
-    getInfo();
+    function fixCommentHeight(maxHeight) {
+        const container = document.getElementById("root").children[0];
+        let rect = container.getBoundingClientRect();
+        while(rect.height > maxHeight) {
+            const comments = document.getElementsByClassName("comment-container");
+            const lastComment = comments[comments.length - 1];
+            lastComment.parentNode.removeChild(lastComment);
+            rect = container.getBoundingClientRect();
+        }
+
+        let comments = document.getElementsByClassName("comment-container");
+        return comments.length > 0;
+    }
+
+    function fail() {
+        document.getElementById("post-data").innerHTML = "FALSE";
+    }
+
+    function main() {
+        const commentContainer = document.getElementById("root").children[0];
+        commentContainer.innerHTML = generateComments(commentData);
+
+        if(fixCommentHeight(1000)) getInfo();
+        else fail();
+    }
+
+    main();
 </script>
