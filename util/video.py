@@ -384,6 +384,8 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
             part_audio = AudioFileClip(audio_path). \
                 set_start(t). \
                 volumex(2.3)
+            part_audio = part_audio.set_end(t + part_audio.duration - 0.05)
+                # audio_fadeout(0.1)
             audios.append(part_audio)
             subtitles.append(Subtitle(part["text"], complete_video_t+t, complete_video_t+t+part_audio.duration))
             wait_length += part_audio.duration

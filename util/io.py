@@ -691,7 +691,8 @@ def download_images(platform, target, options={}):
         zip_path = tmp_dir+f"/{target}.zip"
         shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
     else:
-        file = create_file(target+"-auto")
+        document_name = f"{target}-auto"
+        file = create_file(document_name)
         for i in range(len(image_urls)):
             path = image_urls[i].path
             if os.path.exists(path+".txt"):
@@ -978,13 +979,31 @@ def reddit_comment_to_image(forest):
     return full_path
 
 
+def replace_with_group(match):
+    return match.group(1)
+
+
 def polish_comments(forest):
-    def replace_with_group(match):
-        return match.group(1)
+
+    def repl_markdown(mark):
+        def ret(match):
+            if mark == "bi":
+                return f"<b><i>{match.group(1)}</i></b>"
+            if mark == "b":
+                return f"<b>{match.group(1)}</b>"
+            if mark == "i":
+                return f"<i>{match.group(1)}</i>"
+            return match.group(1)
+        return ret
 
     replacements = [
         ("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\""),
         ("\\[(.+?)\\]\\(.+?\\)", replace_with_group), ("\\. \\. \\.", "..."),
+        (r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))",
+         "[some URL]"),
+        ("\\*\\*\\*(.*?)\\*\\*\\*", repl_markdown("bi")), ("___(.*?)___", repl_markdown("bi")),
+        ("\\*\\*(.*?)\\*\\*", repl_markdown("b")), ("__(.*?)__", repl_markdown("b")),
+        ("\\*(.*?)\\*", repl_markdown("i")), ("_(.*?)_", repl_markdown("i")),
     ]
     for pre, after in replacements:
         forest["body"] = re.sub(pre, after, forest["body"])
@@ -1003,7 +1022,8 @@ def get_script_comment(forest):
 def get_script(text):
     replacements = [
         ("ftw", "for the win"), ("mfw", "my face when"), ("tfw", "that feel when"),
-        ("qt", "cutie"), ("3\\.14", "pi"), (">", ""),
+        ("qt", "cutie"), ("3\\.14", "pi"), ("<i>(.*?)<\\/i>", replace_with_group),
+        ("<b>(.*?)<\\/b>", replace_with_group), (">", ""),
     ]
     text = de_emojify(text)
     for pre, after in replacements:
@@ -1035,6 +1055,32 @@ def get_full_path():
     folder = filedialog.askdirectory(title="Select BGM folder")
     root.update()
     return folder
+
+
+@eel.expose
+def get_image_path():
+    root = Tk()
+    root.withdraw()
+    root.wm_attributes('-topmost', 1)
+    folder = filedialog.askopenfilename(title="Select image", filetypes=[('PNG FILES', '*.png'), ('JPG FILES', '*.jpg')])
+    root.update()
+    return folder
+
+
+@eel.expose
+def generate_thumbnail(thumb_text, thumb_source_type, thumb_source):
+    thumb_dl_dir = DOWNLOAD_PATH + f"/thumbnail-{int(time.time())}.png"
+    thumb_tmp_file = None
+    source_path = thumb_source
+    if thumb_source_type == "url":
+        thumb_tmp_file = DATA_PATH + "/tmp/" + util.utils.randstr(10) + ".png"
+        download_image(thumb_source, thumb_tmp_file)
+        source_path = thumb_tmp_file
+
+    util.image.make_thumbnail(thumb_text, source_path, thumb_dl_dir)
+
+    if thumb_tmp_file is not None:
+        os.remove(thumb_tmp_file)
 
 
 # https://stackoverflow.com/questions/33404752/removing-emojis-from-a-string-in-python

@@ -68,7 +68,11 @@
             score = `${Math.floor(score/1000)}.${Math.floor((score%1000)/100)}k`
         }
 
-        let bodyHTML = `<p class="to-narrate">${body}</p>`.replace(/\n{2,}/gm, '</p><p class="to-narrate">');
+        let bodyHTML = body.split(/\n{2,}/gm);
+        for(let i = 0; i < bodyHTML.length; i++) bodyHTML[i] = bodyHTML[i].trimLeft().trimRight();
+        bodyHTML = bodyHTML.join("</p><p class=\"to-narrate\">");
+        bodyHTML = `<p class="to-narrate">${bodyHTML}</p>`;
+
         let ret = commentTemplate.replace("{author}", author)
                 .replace("{avatar-url}", author_pfp)
                 .replace("{post-text}", bodyHTML)

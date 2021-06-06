@@ -3,7 +3,7 @@ class MainMenu extends React.Component {
   platformSpecific = {
     reddit: { isSelfpostVideo: false, bgmDir: null, maxDuration: 60*11 },
     twitter: {},
-    askreddit: { bgmDir: null, maxDuration: 60*12 },
+    askreddit: { bgmDir: null, maxDuration: 60*11 },
   }
 
   state = {
@@ -12,6 +12,10 @@ class MainMenu extends React.Component {
     target: "",
     platform: "reddit",
     platformSpecific: this.platformSpecific.reddit,
+
+    thumbText: "",
+    thumbSourceType: "url",
+    thumbSource: "",
 
     loading: false,
     success: false,
@@ -26,8 +30,11 @@ class MainMenu extends React.Component {
   }
 
   change = evt => {
-    let change = { [evt.target.name]: evt.target.value };
-    if(evt.target.name == "platform") change.platformSpecific = this.platformSpecific[evt.target.value];
+    const fieldName = evt.target.name;
+    const fieldVal = evt.target.value;
+    let change = { [fieldName]: fieldVal };
+    if(fieldName === "platform") change.platformSpecific = this.platformSpecific[fieldVal];
+    if(fieldName === "thumbSourceType") change.thumbSource = "";
     this.setState(change);
   }
 
@@ -79,10 +86,24 @@ class MainMenu extends React.Component {
     })
   }
 
+  getThumbSource = async evt => {
+    evt.preventDefault();
+    evt.stopPropagation();
+    const thumbSource = await eel.get_image_path()();
+    this.setState({ thumbSource });
+  }
+
+  makeThumbnail = async evt => {
+    evt.preventDefault();
+    const { thumbText, thumbSourceType, thumbSource } = this.state;
+    if(thumbText.length === 0 || thumbSource.length === 0) return;
+    await eel.generate_thumbnail(thumbText, thumbSourceType, thumbSource);
+  }
+
   render() {
     const { files, select, makeFile } = this.props;
     const { modalOpen, fileName, platform, target, loading, success, error,
-        platformSpecific } = this.state;
+        platformSpecific, thumbText, thumbSourceType, thumbSource } = this.state;
 
     let prefix, placeholder;
     switch(platform) {
@@ -98,10 +119,69 @@ class MainMenu extends React.Component {
       bgmDirName = bgmDirSplit[bgmDirSplit.length - 1];
     }
 
+    let thumbSourceName = "";
+    if(thumbSource) {
+      const thumbSourceSplit = thumbSource.split("/");
+      thumbSourceName = thumbSourceSplit[thumbSourceSplit.length - 1];
+    }
+
     return (
       <div className="main-menu">
         <div className="menu-container">
           <div className="section">
+            <form onSubmit={this.makeThumbnail}>
+              <h4>Thumbnail Maker</h4>
+
+              <div className="input-group">
+                <div className="input-group-prepend">
+                  <label className="input-group-text" htmlFor="inputGroupSelect01">
+                    Text
+                  </label>
+                </div>
+                <input type="text" className="form-control" name="thumbText"
+                    onChange={this.change} value={thumbText} autoComplete="off" />
+              </div>
+
+              <div className="my-3">
+                <div className="input-group mb-2">
+                  <div className="input-group-prepend">
+                    <label className="input-group-text" htmlFor="inputGroupSelect01">Image Source</label>
+                  </div>
+                  <select name="thumbSourceType" className="custom-select" id="inputGroupSelect01"
+                      onChange={this.change} value={thumbSourceType}>
+                    <option value="url">URL</option>
+                    <option value="file">File</option>
+                  </select>
+                </div>
+
+                {
+                  thumbSourceType === "url" ?
+                  <div className="input-group">
+                    <input type="text" className="form-control" name="thumbSource"
+                        placeholder="https://site.com/image.png"
+                        onChange={this.change} autoComplete="off" value={thumbSource} />
+                  </div>
+                  : thumbSourceType === "file" &&
+                  <React.Fragment>
+                    <div className="d-flex justify-content-center">
+                      <button onClick={this.getThumbSource} className="btn btn-primary">
+                        Select Image File
+                      </button>
+                    </div>
+                    <p className="text-center white-text">{thumbSourceName}</p>
+                  </React.Fragment>
+                }
+              </div>
+
+              <div className="d-flex justify-content-center">
+                <button type="submit" className="btn btn-primary">Generate</button>
+              </div>
+            </form>
+          </div>
+
+          <div className="section">
+            <h4>Image Downloader</h4>
+
             <form onSubmit={this.downloadImages}>
               <div className="input-group">
                 {
@@ -131,7 +211,7 @@ class MainMenu extends React.Component {
               {
                 platform === "reddit" &&
                 <React.Fragment>
-                  <div className="input-group white-text d-flex justify-content-center">
+                  <div className="input-group white-text d-flex justify-content-center mb-3">
                     <div>
                       <input className="form-check-input" type="checkbox" value={platformSpecific.isSelfpostVideo} id="selfpostCheck"
                           onChange={this.changeSpecific} name="isSelfpostVideo" />
@@ -182,6 +262,8 @@ class MainMenu extends React.Component {
           </div>
 
           <div className="section">
+            <h4>Video Files</h4>
+
             <ul>
               {
                 files.map((f, i) => {
