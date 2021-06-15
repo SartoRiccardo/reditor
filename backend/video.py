@@ -27,8 +27,8 @@ try:
     AudioClip.volumex = volumex
 except imageio.core.fetching.NeedDownloadError:
     imageio.plugins.ffmpeg.download()
-import util.io
-import util.requests
+import backend.editor
+import backend.requests
 import PIL
 import os
 from proglog import TqdmProgressBarLogger
@@ -162,8 +162,11 @@ def export_video(file_id, out_dir, gui_callback=None):
     logger = GuiLogger(gui_callback)
     logger.log({"status": "download-audio"})
     try:
+        backend.log.export_start(file_id)
         export_video_wrapped(file_id, out_dir, logger=logger)
+        backend.log.export_end(file_id)
     except Exception as exc:
+        backend.log.export_err(file_id, str(exc))
         logger.log({"error": True, "error_msg": str(exc)})
         raise exc
 
@@ -175,8 +178,8 @@ def export_video_wrapped(file_id, out_dir, logger=None):
     :param out_dir: str: A path pointing to a new directory.
     :param logger: GuiLogger: An objects that forwards status updates to the GUI.
     """
-    document = util.io.get_file_info(file_id)
-    cache_dir = util.io.get_cache_dir(file_id)
+    document = backend.editor.get_file_info(file_id)
+    cache_dir = backend.editor.get_cache_dir(file_id)
 
     chunks = 1
     for s in document["script"]:
@@ -188,16 +191,16 @@ def export_video_wrapped(file_id, out_dir, logger=None):
 
     chunk_logger = CustomProgressBar(gui_callback=logger.log)
 
-    transition = VideoFileClip(util.io.DATA_PATH + "/assets/transition.mp4")
-    intro = VideoFileClip(util.io.DATA_PATH + "/assets/intro.mp4")
-    outro = VideoFileClip(util.io.DATA_PATH + "/assets/outro.mp4")
+    transition = VideoFileClip(backend.editor.DATA_PATH + "/assets/transition.mp4")
+    intro = VideoFileClip(backend.editor.DATA_PATH + "/assets/intro.mp4")
+    outro = VideoFileClip(backend.editor.DATA_PATH + "/assets/outro.mp4")
 
-    if os.path.exists(util.io.DATA_PATH + "/assets/background.mp4"):
-        background = VideoFileClip(util.io.DATA_PATH + "/assets/background.mp4"). \
+    if os.path.exists(backend.editor.DATA_PATH + "/assets/background.mp4"):
+        background = VideoFileClip(backend.editor.DATA_PATH + "/assets/background.mp4"). \
             set_position(("center", "center")). \
             loop()
     else:
-        background = ImageClip(util.io.DATA_PATH + "/assets/background.png"). \
+        background = ImageClip(backend.editor.DATA_PATH + "/assets/background.png"). \
             set_position(("center", "center"))
     if background.w/background.h <= 16/9:
         background = background.resize(width=VIDEO_SIZE[0])
@@ -271,7 +274,7 @@ def export_video_wrapped(file_id, out_dir, logger=None):
                 if document["script"][j]["type"] == "scene":
                     scenes_left += 1
 
-            scene = util.io.get_scene_info(s["number"], file_id)
+            scene = backend.editor.get_scene_info(s["number"], file_id)
             scene_clips, part_subtitles, t = get_scene_clips(
                 t, scene, cache_dir, is_last=scenes_left == 0, complete_video_t=sum(temp_video_durations)
             )
@@ -437,7 +440,7 @@ def composite_videos(paths, out_file, logger="bar"):
 
 
 def download_audios_for(s, cache_dir, document=None):
-    scene = util.io.get_scene_info(s["number"], file=document)
+    scene = backend.editor.get_scene_info(s["number"], file=document)
     for i in range(len(scene["script"])):
         part = scene["script"][i]
         if part["text"]:
@@ -448,7 +451,7 @@ def download_audios_for(s, cache_dir, document=None):
                 tries = 3
                 while tries:
                     try:
-                        audio = util.requests.get_tts_audio(part["text"], part["voice"])
+                        audio = backend.requests.get_tts_audio(part["text"], part["voice"])
                         tries = 0
                     except:
                         tries -= 1

@@ -13,18 +13,14 @@ DOWNLOAD_PATH = os.path.join(
     os.path.expanduser("~"),
     "Downloads",
 )
-
-
-def is_number(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
+LOG_PATH = os.path.join(
+    DATA_PATH,
+    "logs"
+)
 
 
 def p(path):
-    return DATA_PATH+path
+    return os.path.join(DATA_PATH, *(path[1:].split("/")))
 
 
 def get_project_dir(id):

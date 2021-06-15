@@ -80,7 +80,7 @@ class MainMenu extends React.Component {
   getBGMDir = async evt => {
     evt.preventDefault();
     evt.stopPropagation();
-    const bgmDir = await eel.get_full_path()();
+    const bgmDir = await eel.get_full_path("last-bgm-path")();
     this.setState({
         platformSpecific: { ...this.state.platformSpecific, bgmDir },
     })
@@ -89,7 +89,7 @@ class MainMenu extends React.Component {
   getThumbSource = async evt => {
     evt.preventDefault();
     evt.stopPropagation();
-    const thumbSource = await eel.get_image_path()();
+    const thumbSource = await eel.get_image_path("last-thumbnail-image-path")();
     this.setState({ thumbSource });
   }
 
@@ -193,7 +193,7 @@ class MainMenu extends React.Component {
                   </div>
                 }
                 <input type="text" className="form-control" placeholder={placeholder} name="target"
-                    onChange={this.change} value={target} />
+                    onChange={this.change} value={target} autoComplete="off" />
               </div>
 
               <div className="input-group my-3">

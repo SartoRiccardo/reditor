@@ -2,12 +2,13 @@ from credentials import Reddit, Amazon, Twitter
 import json
 import urllib3
 import urllib.parse
+import os
 import hashlib
 import hmac
 import datetime
 import praw
 import twitter
-import util.io
+import backend.editor
 
 
 http = urllib3.PoolManager()
@@ -108,7 +109,7 @@ def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
                             image_url not in ret:
                         ret.append(ImageLink(image_url, True))
                 elif s.is_self:
-                    image = util.io.reddit_to_image(s, sub)
+                    image = backend.image.reddit_to_image(s, sub)
                     if image:
                         ret.append(ImageLink(image, False))
 
@@ -145,13 +146,13 @@ def post_comments(thread_id):
     try:
         ret = []
         submission = reddit.submission(thread_id)
-        path = util.io.reddit_to_image(submission, submission.subreddit.id)
+        path = backend.image.reddit_to_image(submission, submission.subreddit.id)
         if path:
             ret.append(ImageLink(path, is_url=False))
 
         comments = get_simplified_comments(submission.comments)
         for cmt in comments:
-            path = util.io.reddit_comment_to_image(cmt)
+            path = backend.image.reddit_comment_to_image(cmt)
             if path:
                 ret.append(ImageLink(path, is_url=False))
 
@@ -162,7 +163,7 @@ def post_comments(thread_id):
         return []
 
 
-def get_simplified_comments(forest, max_comment_roots=30, max_comments_per_tree=5):
+def get_simplified_comments(forest, max_comment_roots=35, max_comments_per_tree=5):
     """
     Recursive function that returns a simplified version of a comment.
     :param forest: CommentForest: the forest to simplify.
@@ -327,6 +328,7 @@ def get_tts_audio(text, voice):
     authorization_header = algorithm + ' ' + 'Credential=' + Amazon.access_key + '/' + credential_scope +\
         ', ' + 'SignedHeaders=' + signed_headers + ', ' + 'Signature=' + signature
 
+    backend.log.tts(text, voice)
     resp = http.request(
         "POST",
         endpoint,
@@ -339,3 +341,15 @@ def get_tts_audio(text, voice):
     )
 
     return resp.data
+
+
+def download_image(url, file_path):
+    stdout = open(file_path, "wb")
+    response = http.request("GET", url, preload_content=False)
+    for chunk in response.stream(1024):
+        stdout.write(chunk)
+    response.release_conn()
+
+    if response.status == 404:
+        os.remove(file_path)
+        return None

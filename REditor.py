@@ -1,5 +1,5 @@
 import eel
-import util
+import backend
 
 
 class Application:
