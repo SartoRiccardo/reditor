@@ -759,7 +759,6 @@ def download_images(platform, target, options={}):
         for i in range(len(new_song_ids)):
             new_song_i = new_song_ids[i]+i*2 + 1
             song_to_relocate = script_len - (len(new_song_ids)-i)*2 + 2
-            print(f"> RELOCATE {song_to_relocate} TO {new_song_i}")
             relocate_scene(song_to_relocate, new_song_i, document=file["id"])
             relocate_scene(song_to_relocate, new_song_i, document=file["id"])
 
@@ -1003,7 +1002,7 @@ def polish_comments(forest):
          "[some URL]"),
         ("\\*\\*\\*(.*?)\\*\\*\\*", repl_markdown("bi")), ("___(.*?)___", repl_markdown("bi")),
         ("\\*\\*(.*?)\\*\\*", repl_markdown("b")), ("__(.*?)__", repl_markdown("b")),
-        ("\\*(.*?)\\*", repl_markdown("i")), ("_(.*?)_", repl_markdown("i")),
+        ("\\*(.*?)\\*", repl_markdown("i")), ("_(.*?)_", repl_markdown("i")), ("\r", "\n"),
     ]
     for pre, after in replacements:
         forest["body"] = re.sub(pre, after, forest["body"])
@@ -1029,6 +1028,7 @@ def get_script(text):
     for pre, after in replacements:
         text = re.sub(pre, after, text, flags=re.IGNORECASE)
     text = re.split("\n{2,}", text)
+    text = [t.replace("\n", "") for t in text]
     split_at = [". ", "? ", "! "]
     for c in split_at:
         length = len(text)

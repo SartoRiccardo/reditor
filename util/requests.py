@@ -162,7 +162,7 @@ def post_comments(thread_id):
         return []
 
 
-def get_simplified_comments(forest, max_comment_roots=100, max_comments_per_tree=5):
+def get_simplified_comments(forest, max_comment_roots=30, max_comments_per_tree=5):
     """
     Recursive function that returns a simplified version of a comment.
     :param forest: CommentForest: the forest to simplify.
@@ -186,7 +186,8 @@ def get_simplified_comments(forest, max_comment_roots=100, max_comments_per_tree
             pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
             if comment.author:
                 name = comment.author.name
-                pfp = comment.author.icon_img
+                if hasattr(comment.author, "icon_img"):
+                    pfp = comment.author.icon_img
             ret.append({
                 "author": name,
                 "author_pfp": pfp,
@@ -218,7 +219,8 @@ def get_simplified_nested_comments(forest, max_comments, current_comments=None, 
             pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
             if comment.author:
                 name = comment.author.name
-                pfp = comment.author.icon_img
+                if hasattr(comment.author, "icon_img"):
+                    pfp = comment.author.icon_img
             ret.append({
                 "author": name,
                 "author_pfp": pfp,
