@@ -84,6 +84,8 @@ class CustomProgressBar(TqdmProgressBarLogger):
         if self.started_video and self.gui_callback:
             percentage = (value+1)/self.total_frames*100
             percentage = CustomProgressBar.trunc_half(percentage)
+            if percentage > 100:
+                percentage = 100
             if percentage != self.prev_percentage:
                 self.gui_callback({"percentage": percentage})
                 self.prev_percentage = percentage
@@ -152,18 +154,19 @@ class GuiLogger:
             self.callback(to_send)
 
 
-def export_video(file_id, out_dir, gui_callback=None):
+def export_video(file_id, out_dir, gui_callback=None, video_name="video.mp4"):
     """
     A wrapper for an easier time trying and excepting.
     :param file_id: int: The numerical ID of the file.
     :param out_dir: str: A path pointing to a new directory.
     :param gui_callback: function: A function called every time the state changes.
+    :param video_name: str: The name of the file.
     """
     logger = GuiLogger(gui_callback)
     logger.log({"status": "download-audio"})
     try:
         backend.log.export_start(file_id)
-        export_video_wrapped(file_id, out_dir, logger=logger)
+        export_video_wrapped(file_id, out_dir, video_name, logger=logger)
         backend.log.export_end(file_id)
     except Exception as exc:
         backend.log.export_err(file_id, str(exc))
@@ -171,11 +174,12 @@ def export_video(file_id, out_dir, gui_callback=None):
         raise exc
 
 
-def export_video_wrapped(file_id, out_dir, logger=None):
+def export_video_wrapped(file_id, out_dir, video_name, logger=None):
     """
     Pieces together the video with all the info found in the document's directory.
     :param file_id: int: The numerical ID of the file.
     :param out_dir: str: A path pointing to a new directory.
+    :param video_name: str: The name of the videofile.
     :param logger: GuiLogger: An objects that forwards status updates to the GUI.
     """
     document = backend.editor.get_file_info(file_id)
@@ -186,7 +190,7 @@ def export_video_wrapped(file_id, out_dir, logger=None):
         if s["type"] == "transition":
             chunks += 1
         elif s["type"] == "scene":
-            download_audios_for(s, cache_dir)
+            download_audios_for(s, cache_dir, document=file_id)
     logger.set_chunks(chunks)
 
     chunk_logger = CustomProgressBar(gui_callback=logger.log)
@@ -339,7 +343,7 @@ def export_video_wrapped(file_id, out_dir, logger=None):
     fsub.close()
 
     chunk_logger = CustomProgressBar(gui_callback=logger.log)
-    composite_videos(temp_video_paths, out_dir+"/video.mp4", chunk_logger)
+    composite_videos(temp_video_paths, f"{out_dir}/{video_name}", chunk_logger)
     for tmp_vid in temp_video_paths:
         os.remove(tmp_vid)
 
@@ -422,6 +426,7 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
 
 def composite_videos(paths, out_file, logger="bar"):
     clips = []
+    print(out_file)
 
     t = 0
     for i in range(len(paths)):

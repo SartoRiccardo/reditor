@@ -377,6 +377,12 @@ def open_file(id):
 
 
 @eel.expose
+def close_file():
+    global open_file_id
+    open_file_id = None
+
+
+@eel.expose
 def add_to_script(type, document=None):
     if document is None:
         document = open_file_id
@@ -653,11 +659,13 @@ def set_song(number, name, song_b64, is_path=False, document=None):
 
 
 @eel.expose
-def export_file():
+def export_file(document=None):
+    if document is None:
+        document = open_file_id
     files = get_files()
     file_name = None
     for f in files:
-        if f["id"] == open_file_id:
+        if f["id"] == document:
             file_name = f["name"]
             break
 
@@ -669,11 +677,17 @@ def export_file():
         shutil.rmtree(export_dir)
     os.mkdir(export_dir)
     try:
-        backend.video.export_video(open_file_id, export_dir, gui_callback=eel.gui_callback)
+        backend.video.export_video(document, export_dir, gui_callback=eel.gui_callback, video_name=file_name+".mp4")
     except Exception as exc:
         fout = open("/Users/riccardosartori/Desktop/err.txt", "w")
         fout.write(traceback.format_exc())
         fout.close()
+
+
+@eel.expose
+def export_multiple(files):
+    for f in files:
+        export_file(f)
 
 
 @eel.expose

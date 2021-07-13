@@ -59,6 +59,18 @@
   border-radius: 4px;
 }
 
+.main-menu li.selectable {
+  background-color: var(--cyan-lighten-5);
+  animation: border-selectable 1s;
+  animation-iteration-count: infinite;
+}
+
+.main-menu li.selectable.selected {
+  background-color: var(--cyan-lighten-3);
+  border-color: var(--cyan-darken-2);
+  animation: none;
+}
+
 .main-menu .overlay {
   background-color: #0003;
 }
@@ -88,4 +100,56 @@
   background-color: var(--blue-darken-4);
   border: 3px solid var(--indigo-darken-4);
   border-radius: 4px;
+}
+
+@keyframes border-selectable {
+  from { border-color: var(--teal-lighten-3) }
+  50% { border-color: var(--teal-darken-1) }
+  to { border-color: var(--teal-lighten-3) }
+}
+
+.mass-export-btn.cancel {
+  background-color: var(--red-lighten-3);
+  border-color: var(--red-darken-2);
+}
+.mass-export-btn.start {
+  background-color: var(--green-lighten-2);
+  border-color: var(--green-darken-3);
+}
+
+.mini-export-info {
+  color: white;
+  text-align: center;
+  font-weight: bold;
+  margin-top: 12rem;
+}
+
+.section .overlay {
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+.section .loading-bar-container {
+  height: 1.5rem;
+  padding: .2rem;
+  margin: 0 auto;
+  width: 80%;
+  border: 3px solid white;
+  border-radius: 5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.section .loading-bar {
+  height: 100%;
+  background-color: white;
+  border-radius: 5rem;
+}
+
+.section .loading-bar-percentage {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 0 1rem 0 .5rem;
+  background-color: rgba(0,0,0,0.75);
+  color: white;
 }

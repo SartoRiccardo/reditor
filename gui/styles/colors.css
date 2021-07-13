@@ -5,8 +5,15 @@
     --blue-darken-2: #1976d2;
     --blue-darken-4: #0d47a1;
 
+    --cyan-lighten-5: #e0f7fa;
     --cyan-lighten-4: #b2ebf2;
+    --cyan-lighten-3: #80deea;
+    --cyan-lighten-2: #4dd0e1;
     --cyan-darken-1: #00acc1;
+    --cyan-darken-2: #0097a7;
+
+    --teal-lighten-3: #80cbc4;
+    --teal-darken-1: #00897b;
 
     --indigo-darken-4: #1a237e;
 
@@ -34,6 +41,8 @@
     --gray-darken-2: #616161;
     --gray-darken-3: #424242;
 
+    --red-lighten-3: #ef9a9a;
+    --red-lighten-2: #e57373;
     --red-darken-1: #e53935;
     --red-darken-2: #d32f2f;
     --red-darken-4: #b71c1c;

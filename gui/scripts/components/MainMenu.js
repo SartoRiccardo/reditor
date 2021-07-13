@@ -20,6 +20,13 @@ class MainMenu extends React.Component {
     loading: false,
     success: false,
     error: false,
+
+    selectedFilesExport: [],
+    selectingExport: false,
+    exporting: false,
+    exportStatus: "",
+    exportPercentage: 0,
+    finishedExportCount: 0,
   }
 
   openModal = () => {
@@ -100,10 +107,52 @@ class MainMenu extends React.Component {
     await eel.generate_thumbnail(thumbText, thumbSourceType, thumbSource);
   }
 
+  massExportAction = () => {
+    const { selectingExport, selectedFilesExport } = this.state;
+    if(selectingExport && selectedFilesExport.length) {
+      massExportFiles(selectedFilesExport, this.exportEventHandler);
+      this.setState({ exporting: true, finishedExportCount: 0 });
+    }
+    else
+      this.setState({ selectingExport: !selectingExport });
+  }
+
+  exportEventHandler = evt => {
+    const { message, percentage, finished } = evt;
+    const { finishedExportCount, selectedFilesExport } = this.state;
+    let update = {};
+
+    if(finished) {
+      update.finishedExportCount = finishedExportCount + 1;
+      update.exporting = update.finishedExportCount < selectedFilesExport.length;
+      if(!update.exporting) {
+        update.selectingExport = false;
+        update.selectedFilesExport = [];
+      }
+    }
+    if(message) update.exportStatus = message;
+    if(percentage) update.exportPercentage = percentage;
+
+    if(Object.keys(update).length) this.setState(update);
+  }
+
+  exportSelect = id => {
+    const { selectedFilesExport } = this.state;
+    let exportFiles = [ ...selectedFilesExport ];
+    if(exportFiles.includes(id)) exportFiles = exportFiles.filter(expId => expId !== id);
+    else exportFiles.push(id);
+
+    this.setState({
+      selectedFilesExport: exportFiles,
+    });
+  }
+
   render() {
     const { files, select, makeFile } = this.props;
     const { modalOpen, fileName, platform, target, loading, success, error,
-        platformSpecific, thumbText, thumbSourceType, thumbSource } = this.state;
+        platformSpecific, thumbText, thumbSourceType, thumbSource,
+        selectingExport, selectedFilesExport, exporting, exportStatus,
+        exportPercentage, finishedExportCount } = this.state;
 
     let prefix, placeholder;
     switch(platform) {
@@ -123,6 +172,19 @@ class MainMenu extends React.Component {
     if(thumbSource) {
       const thumbSourceSplit = thumbSource.split("/");
       thumbSourceName = thumbSourceSplit[thumbSourceSplit.length - 1];
+    }
+
+    let exportBtnClass = "mass-export-btn";
+    let exportBtnContent = "Mass Export";
+    if(selectingExport) {
+      if(selectedFilesExport.length) {
+        exportBtnContent = "Start Export";
+        exportBtnClass += " start";
+      }
+      else {
+        exportBtnContent = "Cancel";
+        exportBtnClass += " cancel";
+      }
     }
 
     return (
@@ -180,7 +242,7 @@ class MainMenu extends React.Component {
           </div>
 
           <div className="section">
-            <h4>Image Downloader</h4>
+            <h4>Video Downloader</h4>
 
             <form onSubmit={this.downloadImages}>
               <div className="input-group">
@@ -261,21 +323,30 @@ class MainMenu extends React.Component {
             </form>
           </div>
 
-          <div className="section">
+          <div className="section prel">
             <h4>Video Files</h4>
 
             <ul>
               {
                 files.map((f, i) => {
-                  let className;
+                  let className = "";
+                  let onClick = () => select(f.id);
                   if(i === 0) className = "first";
                   if(i === files.length-1) className = "last";
+                  if(selectingExport) {
+                    className += " selectable";
+                    onClick = () => this.exportSelect(f.id);
+                    if(selectedFilesExport.includes(f.id)) className += " selected"
+                  }
                   return (
-                    <li key={f.id} className={className} onClick={() => select(f.id)}>
+                    <li key={f.id} className={className} onClick={onClick}>
                       { f.name }
-                      <span className="svg-container" onClick={this.onDelete(f)}>
-                        <Favicon icon="trashcan" />
-                      </span>
+                      {
+                        !selectingExport &&
+                        <span className="svg-container" onClick={this.onDelete(f)}>
+                          <Favicon icon="trashcan" />
+                        </span>
+                      }
                     </li>
                   );
                 })
@@ -283,7 +354,26 @@ class MainMenu extends React.Component {
               <li className="mt-3" onClick={this.openModal}>
                 New File
               </li>
+              <li onClick={this.massExportAction}
+                  className={exportBtnClass}>
+                { exportBtnContent }
+              </li>
             </ul>
+
+            {
+              exporting &&
+              <div className="overlay">
+                <div className="mini-export-info">
+                  <h4>
+                    Video {finishedExportCount+1} of {selectedFilesExport.length}
+                  </h4>
+                  <p className="lead">{exportStatus}</p>
+                  <div className="loading-bar-container">
+                    <div className="loading-bar" style={{width: `${exportPercentage}%`}} />
+                  </div>
+                </div>
+              </div>
+            }
           </div>
         </div>
         {

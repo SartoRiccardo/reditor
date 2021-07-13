@@ -125,6 +125,11 @@ async function exportFile(callback) {
   await eel.export_file();
 }
 
+async function massExportFiles(files, callback) {
+  actualGuiCallback = callback;
+  await eel.export_multiple(files);
+}
+
 eel.expose(gui_callback);
 let actualGuiCallback = () => null;
 function gui_callback(evt) {

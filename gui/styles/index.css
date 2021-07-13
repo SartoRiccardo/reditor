@@ -93,7 +93,7 @@ img, .input-group {
   opacity: 0.25;
 }
 
-.p-relative {
+.p-relative, .prel {
   position: relative;
 }
 
