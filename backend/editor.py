@@ -105,6 +105,7 @@ def init_assets(base_path):
         "/background.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255906345140234/background.mp4",
         "/intro.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255934602149909/intro.mp4",
         "/outro.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255975391760424/outro.mp4",
+        "/transition.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255991745376256/transition.mp4",
         "/thumbnail": {
             "/thumbnail-font-bold.ttf": "https://cdn.discordapp.com/attachments/924255725390270474/924256041695330344/thumbnail-font-bold.ttf",
             "/thumbnail-font-regular.ttf": "https://cdn.discordapp.com/attachments/924255725390270474/924256058875211837/thumbnail-font-regular.ttf",
@@ -224,7 +225,7 @@ def make_automatic_video(document_name, image_urls, options):
     duration = 0
     total_duration = 0
     max_duration = 4 * 60
-    max_file_duration = options["maxDuration"] if options["maxDuration"] else 11*60
+    max_file_duration = options["maxDuration"] if "maxDuration" in options else 11*60
     soundtrack_dir = options["bgmDir"]
     soundtracks = []
     for root, _, files in os.walk(soundtrack_dir):
@@ -712,7 +713,6 @@ def download_images(platform, target, options={}):
             id_re = r"comments\/(.+?)\/"
             target = re.search(id_re, target).group(1)
         image_urls = backend.requests.post_comments(target)
-        print(image_urls)
 
     if len(image_urls) == 0:
         return False
