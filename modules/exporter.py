@@ -7,6 +7,7 @@ import backend.editor
 import os
 from backend.paths import DOWNLOAD_PATH
 import requests
+from modules.logger import Logger
 
 
 class Exporter(threading.Thread):
@@ -50,12 +51,12 @@ class Exporter(threading.Thread):
         if len(files) == 0:
             return
         to_export = files[0]["id"]
-        Exporter.log(f"Exporting **{chosen['title']}**")
+        Logger.log(f"Exporting **{chosen['title']}**", Logger.INFO)
         backend.editor.export_file(to_export, log_callback=self.check_errors)
         if not self.error_exporting:
             backend.database.confirm_export(chosen["thread"])
         backend.editor.delete_file(to_export)
-        Exporter.log(f"Exported **{chosen['title']}**")
+        Logger.log(f"Exported **{chosen['title']}**", Logger.SUCCESS)
 
     def stop(self):
         self.active = False
@@ -65,17 +66,7 @@ class Exporter(threading.Thread):
             return
         self.error_exporting = True
         # Log somewhere
-        Exporter.log(evt["error_msg"], is_error=True)
-
-    @staticmethod
-    def log(message, is_error=False):
-        webhook_url = backend.database.config("rdt_logger")
-        embed = {"embeds": [{
-            "title": "Error",
-            "color": 12986408 if is_error else 4431943,
-            "description": message
-        }]}
-        requests.post(webhook_url, json=embed)
+        Logger.log(evt["error_msg"], Logger.ERROR)
 
     @staticmethod
     def get_video_backlog():
