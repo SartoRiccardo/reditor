@@ -51,12 +51,17 @@ class Exporter(threading.Thread):
         if len(files) == 0:
             return
         to_export = files[0]["id"]
-        Logger.log(f"Exporting **{chosen['title']}**", Logger.INFO)
+
+        title = chosen["title"] if chosen["title"] else chosen["thread_title"]
+        Logger.log(f"Exporting **{title}**", Logger.INFO)
+        if not chosen["title"]:
+            Logger.log(f"No title or thumbnail for **{chosen['thread_title']}**", Logger.ERROR)
+
         backend.editor.export_file(to_export, log_callback=self.check_errors)
         if not self.error_exporting:
             backend.database.confirm_export(chosen["thread"])
         backend.editor.delete_file(to_export)
-        Logger.log(f"Exported **{chosen['title']}**", Logger.SUCCESS)
+        Logger.log(f"Exported **{title}**", Logger.SUCCESS)
 
     def stop(self):
         self.active = False
@@ -92,4 +97,6 @@ class Exporter(threading.Thread):
 
         if ready_count > 0:
             return videos[randint(0, ready_count-1)]
+
+        Logger.log("No videos currently have title/thumbnail set!", Logger.WARN)
         return videos[randint(0, len(videos)-1)]

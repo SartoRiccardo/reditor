@@ -6,6 +6,7 @@ class Logger:
     INFO = 2001125
     SUCCESS = 4431943
     ERROR = 12986408
+    WARN = 16772696
 
     @staticmethod
     def log(message, severity):

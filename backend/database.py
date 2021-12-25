@@ -9,18 +9,46 @@ conn = psycopg2.connect(
 
 def get_videos():
     cur = conn.cursor()
-    cur.execute("SELECT thread, title, thumbnail FROM rdt_videos WHERE NOT exported ORDER BY title ASC")
+    cur.execute("""
+        SELECT vid.thread, vid.title, vid.thumbnail, thr.title
+        FROM rdt_videos as vid
+            JOIN rdt_threads as thr ON vid.thread = thr.id
+        WHERE NOT exported
+        ORDER BY thumbnail ASC
+    """)
     rows = cur.fetchall()
-    rows = [{"thread": r[0], "title": r[1], "thumbnail": r[2]} for r in rows]
+    rows = [{"thread": r[0], "title": r[1], "thumbnail": r[2], "thread_title": r[3]} for r in rows]
     return rows
 
 
 def get_video(thread):
     cur = conn.cursor()
-    cur.execute("SELECT thread, title, thumbnail FROM rdt_videos WHERE thread=%s", [thread])
+    cur.execute("""
+            SELECT vid.thread, vid.title, vid.thumbnail, thr.title
+            FROM rdt_videos as vid
+                JOIN rdt_threads as thr ON vid.thread = thr.id
+            WHERE vid.thread=%s
+    """, [thread])
     row = cur.fetchone()
-    row = {"thread": row[0], "title": row[1], "thumbnail": row[2]}
+    if not row:
+        print(f"None for {thread}!")
+        return
+    row = {"thread": row[0], "title": row[1], "thumbnail": row[2], "thread_title": row[3]}
     return row
+
+
+def get_complete_videos():
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT thread, vid.title, vid.thumbnail, thr.title
+        FROM rdt_videos as vid
+            JOIN rdt_threads as thr ON vid.thread = thr.id
+        WHERE exported AND vid.thumbnail IS NOT NULL
+            AND vid.title IS NOT NULL
+    """)
+    rows = cur.fetchall()
+    rows = [{"thread": r[0], "title": r[1], "thumbnail": r[2], "thread_title": r[3]} for r in rows]
+    return rows
 
 
 def confirm_export(thread):

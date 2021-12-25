@@ -144,14 +144,6 @@ def add_captions(youtube, uploaded_id, captions):
 def upload(video, thumbnail, captions):
     youtube = get_authenticated_service()
     try:
-        options = {
-            "title": "test video",
-            "description": "test description",
-            "tags": "test,tags,123",
-            "category": "22",
-            "privacy": "private",
-            "file": "/Users/riccardosartori/Desktop/finalcrackdown.mp4"
-        }
         uploaded_id = initialize_upload(youtube, video)
         add_thumbnail(youtube, uploaded_id, thumbnail)
         add_captions(youtube, uploaded_id, captions)
