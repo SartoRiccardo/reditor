@@ -4,10 +4,9 @@ import os
 
 
 DATA_PATH = os.path.join(
-    os.path.expanduser("~"),
-    "Library",
-    "Application Support",
-    "it.riccardosartori.reditor"
+    os.path.dirname(os.path.realpath(__file__)),
+    "..",
+    "data"
 )
 DOWNLOAD_PATH = os.path.join(
     os.path.expanduser("~"),

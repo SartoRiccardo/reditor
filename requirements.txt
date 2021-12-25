@@ -1,11 +1,12 @@
-eel
 praw
 mutagen
 moviepy
 twitter
 urllib3
 imageio
-PIL
+pillow
 proglog
+tesseract
 pytesseract
 html2image
+psycopg2

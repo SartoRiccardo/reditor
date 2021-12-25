@@ -343,6 +343,10 @@ def get_tts_audio(text, voice):
     return resp.data
 
 
+def download_resource(url, file_path):
+    download_image(url, file_path)
+
+
 def download_image(url, file_path):
     stdout = open(file_path, "wb")
     response = http.request("GET", url, preload_content=False)

@@ -1,5 +1,4 @@
 import os
-import eel
 import csv
 import shutil
 import base64
@@ -42,6 +41,7 @@ last-thumbnail-image-path /
 """[1:]
 open_file_id = None
 pool = urllib3.PoolManager()
+
 
 # ENUMS
 NO_PROJECT = -1
@@ -94,6 +94,31 @@ def init():
                 f.close()
             else:
                 os.mkdir(p(d))
+                if d == "/assets":
+                    init_assets(p(d))
+
+
+def init_assets(base_path):
+    files = {
+        "/background.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255906345140234/background.mp4",
+        "/intro.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255934602149909/intro.mp4",
+        "/outro.mp4": "https://cdn.discordapp.com/attachments/924255725390270474/924255975391760424/outro.mp4",
+        "/thumbnail": {
+            "/thumbnail-font-bold.ttf": "https://cdn.discordapp.com/attachments/924255725390270474/924256041695330344/thumbnail-font-bold.ttf",
+            "/thumbnail-font-regular.ttf": "https://cdn.discordapp.com/attachments/924255725390270474/924256058875211837/thumbnail-font-regular.ttf",
+            "/watermark.png": "https://cdn.discordapp.com/attachments/924255725390270474/924256073114877962/watermark.png",
+        }
+    }
+    download_assets(base_path, files)
+
+
+def download_assets(base_path, files):
+    for key in files:
+        if type(files[key]) == str:
+            backend.requests.download_resource(files[key], base_path+key)
+        else:
+            os.mkdir(base_path+key)
+            download_assets(base_path+key, files[key])
 
 
 def get_config(project_id, variable):
@@ -254,7 +279,6 @@ def make_automatic_video(document_name, image_urls, options):
 
 
 # REQUEST HANDLERS
-@eel.expose
 def get_file_info(id):
     finfo = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo, delimiter=";", quotechar="\"")
@@ -318,7 +342,6 @@ def get_file_info(id):
     return ret
 
 
-@eel.expose
 def get_files():
     finfo = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo, delimiter=";", quotechar="\"")
@@ -333,7 +356,6 @@ def get_files():
     return ret
 
 
-@eel.expose
 def create_file(name):
     finfo_r = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo_r, delimiter=";", quotechar="\"")
@@ -370,19 +392,16 @@ def create_file(name):
     return ret
 
 
-@eel.expose
 def open_file(id):
     global open_file_id
     open_file_id = id
 
 
-@eel.expose
 def close_file():
     global open_file_id
     open_file_id = None
 
 
-@eel.expose
 def add_to_script(type, document=None):
     if document is None:
         document = open_file_id
@@ -434,7 +453,6 @@ def add_to_script(type, document=None):
     return ret
 
 
-@eel.expose
 def delete_file(id):
     finfo = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo, delimiter=";", quotechar="\"")
@@ -457,7 +475,6 @@ def delete_file(id):
         shutil.rmtree(get_project_dir(id))
 
 
-@eel.expose
 def change_scene_info(scene, script_index, new_script, document=None):
     if document is None:
         document = open_file_id
@@ -483,7 +500,6 @@ def change_scene_info(scene, script_index, new_script, document=None):
     return True
 
 
-@eel.expose
 def get_scene_info(scene, file=None):
     if file is None:
         file = open_file_id
@@ -516,7 +532,6 @@ def get_scene_info(scene, file=None):
     }
 
 
-@eel.expose
 def relocate_scene(old_i, new_i, document=None):
     if document is None:
         document = open_file_id
@@ -534,7 +549,6 @@ def relocate_scene(old_i, new_i, document=None):
     fscript.close()
 
 
-@eel.expose
 def delete_script_part(scene, part_i):
     script_file = get_scene_dir(open_file_id, scene) + "/script.txt"
     fscript = open(script_file)
@@ -554,7 +568,6 @@ def delete_script_part(scene, part_i):
     return True
 
 
-@eel.expose
 def delete_scene(scene_i, document=None):
     if document is None:
         document = open_file_id
@@ -594,7 +607,6 @@ def delete_scene(scene_i, document=None):
                 os.remove(ost_path)
 
 
-@eel.expose
 def set_image(scene, image):
     image_path = get_scene_dir(open_file_id, scene) + "/image."
 
@@ -613,7 +625,6 @@ def set_image(scene, image):
     return True
 
 
-@eel.expose
 def set_song(number, name, song_b64, is_path=False, document=None):
     if document is None:
         document = open_file_id
@@ -658,7 +669,6 @@ def set_song(number, name, song_b64, is_path=False, document=None):
     }
 
 
-@eel.expose
 def export_file(document=None):
     if document is None:
         document = open_file_id
@@ -677,20 +687,18 @@ def export_file(document=None):
         shutil.rmtree(export_dir)
     os.mkdir(export_dir)
     try:
-        backend.video.export_video(document, export_dir, gui_callback=eel.gui_callback, video_name=file_name+".mp4")
+        backend.video.export_video(document, export_dir, gui_callback=print, video_name=file_name+".mp4")
     except Exception as exc:
         fout = open("/Users/riccardosartori/Desktop/err.txt", "w")
         fout.write(traceback.format_exc())
         fout.close()
 
 
-@eel.expose
 def export_multiple(files):
     for f in files:
         export_file(f)
 
 
-@eel.expose
 def download_images(platform, target, options={}):
     image_urls = []
     if platform == "reddit":
@@ -737,7 +745,6 @@ def download_images(platform, target, options={}):
     return True
 
 
-@eel.expose
 def load_video_duration(document=None, max_time=-1, max_chars=-1):
     """
     Loads the duration of a video.
@@ -765,7 +772,6 @@ def load_video_duration(document=None, max_time=-1, max_chars=-1):
     return total_duration
 
 
-@eel.expose
 def detect_text(scene, crop, document=None):
     if document is None:
         document = open_file_id
@@ -793,7 +799,6 @@ def detect_text(scene, crop, document=None):
     return text.strip()
 
 
-@eel.expose
 def get_full_path(dial_id):
     last_dir = get_config(NO_PROJECT, dial_id)
 
@@ -808,7 +813,6 @@ def get_full_path(dial_id):
     return folder
 
 
-@eel.expose
 def get_image_path(dial_id):
     last_dir = get_config(NO_PROJECT, dial_id)
 
@@ -826,7 +830,6 @@ def get_image_path(dial_id):
     return image
 
 
-@eel.expose
 def generate_thumbnail(thumb_text, thumb_source_type, thumb_source):
     thumb_dl_dir = DOWNLOAD_PATH + f"/thumbnail-{int(time.time())}.png"
     thumb_tmp_file = None

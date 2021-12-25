@@ -9,7 +9,7 @@ import pytesseract
 pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
 
-FONT = ImageFont.truetype(backend.paths.DATA_PATH + "/assets/thumbnail/thumbnail-font-bold.ttf", 100)
+FONT = None
 WATERMARK_PATH = backend.paths.DATA_PATH + "/assets/thumbnail/watermark.png"
 FONT_COLOR = (255, 255, 255)
 STROKE_WIDTH = 8
@@ -22,6 +22,11 @@ html_template_post = None
 css_post = None
 html_template_comment = None
 css_comment = None
+
+
+def init():
+    global FONT
+    FONT = ImageFont.truetype(backend.paths.DATA_PATH + "/assets/thumbnail/thumbnail-font-bold.ttf", 100)
 
 
 def make_thumbnail(text, image_path, save_path, max_chars_per_line=20):
@@ -230,3 +235,6 @@ def reddit_to_image(submission, subreddit_name):
         pass
 
     return full_path
+
+
+init()
