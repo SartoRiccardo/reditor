@@ -15,6 +15,14 @@ def get_videos():
     return rows
 
 
+def get_video(thread):
+    cur = conn.cursor()
+    cur.execute("SELECT thread, title, thumbnail FROM rdt_videos WHERE thread=%s", [thread])
+    row = cur.fetchone()
+    row = {"thread": row[0], "title": row[1], "thumbnail": row[2]}
+    return row
+
+
 def confirm_export(thread):
     cur = conn.cursor()
     cur.execute("UPDATE rdt_videos SET exported=TRUE WHERE thread=%s", [thread])

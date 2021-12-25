@@ -10,3 +10,7 @@ tesseract
 pytesseract
 html2image
 psycopg2
+oauth2client
+google-api-python-client
+httplib2
+google_auth_oauthlib

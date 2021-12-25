@@ -6,17 +6,18 @@ from datetime import datetime, timedelta
 import backend.editor
 import os
 from backend.paths import DOWNLOAD_PATH
+import requests
 
 
 class Exporter(threading.Thread):
-    # UPLOAD_EVERY = 60*60*12
-    UPLOAD_EVERY = 3
+    UPLOAD_EVERY = 60*60*12
 
     def __init__(self):
         super().__init__()
         self.last_loop = datetime.now()
         self.active = True
         self.first_loop = True
+        self.error_exporting = False
 
     def run(self):
         self.first_loop = True
@@ -27,6 +28,7 @@ class Exporter(threading.Thread):
                 print(exc)
 
     def task(self):
+        self.error_exporting = False
         while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.UPLOAD_EVERY) or
                 len(Exporter.get_video_backlog()) > 3) and \
                 self.active and not self.first_loop:
@@ -48,12 +50,32 @@ class Exporter(threading.Thread):
         if len(files) == 0:
             return
         to_export = files[0]["id"]
-        backend.editor.export_file(to_export)
-        backend.database.confirm_export(chosen["thread"])
+        Exporter.log(f"Exporting **{chosen['title']}**")
+        backend.editor.export_file(to_export, log_callback=self.check_errors)
+        if not self.error_exporting:
+            backend.database.confirm_export(chosen["thread"])
         backend.editor.delete_file(to_export)
+        Exporter.log(f"Exported **{chosen['title']}**")
 
     def stop(self):
         self.active = False
+
+    def check_errors(self, evt):
+        if "error_msg" not in evt:
+            return
+        self.error_exporting = True
+        # Log somewhere
+        Exporter.log(evt["error_msg"], is_error=True)
+
+    @staticmethod
+    def log(message, is_error=False):
+        webhook_url = backend.database.config("rdt_logger")
+        embed = {"embeds": [{
+            "title": "Error",
+            "color": 12986408 if is_error else 4431943,
+            "description": message
+        }]}
+        requests.post(webhook_url, json=embed)
 
     @staticmethod
     def get_video_backlog():

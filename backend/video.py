@@ -125,33 +125,35 @@ class GuiLogger:
         self.chunks = chunks+1
 
     def log(self, evt):
-        to_send = {}
-        if "started" in evt and evt["started"]:
-            self.current_chunk += 1
-            if self.current_chunk == self.chunks:
-                to_send["message"] = f"Exporting final..."
-            else:
-                to_send["message"] = f"Exporting chunk... ({self.current_chunk}/{self.chunks})"
-            to_send["subtitle"] = ""
-
-        if "status" in evt:
-            if evt["status"] == "audio":
-                to_send["subtitle"] = "Creating audio..."
-            elif evt["status"] == "video":
-                to_send["subtitle"] = "Creating video..."
-            elif evt["status"] == "download-audio":
-                to_send["subtitle"] = "Generating TTS audios..."
-
-        if "percentage" in evt:
-            to_send["percentage"] = evt["percentage"]
-        if "finished" in evt and self.current_chunk == self.chunks:
-            to_send["finished"] = evt["finished"]
-
-        if "error" in evt:
-            to_send["subtitle"] = "Something went wrong: " + evt["error_msg"]
+        # to_send = {}
+        # if "started" in evt and evt["started"]:
+        #     self.current_chunk += 1
+        #     if self.current_chunk == self.chunks:
+        #         to_send["message"] = f"Exporting final..."
+        #     else:
+        #         to_send["message"] = f"Exporting chunk... ({self.current_chunk}/{self.chunks})"
+        #     to_send["subtitle"] = ""
+        #
+        # if "status" in evt:
+        #     if evt["status"] == "audio":
+        #         to_send["subtitle"] = "Creating audio..."
+        #     elif evt["status"] == "video":
+        #         to_send["subtitle"] = "Creating video..."
+        #     elif evt["status"] == "download-audio":
+        #         to_send["subtitle"] = "Generating TTS audios..."
+        #
+        # if "percentage" in evt:
+        #     to_send["percentage"] = evt["percentage"]
+        # if "finished" in evt and self.current_chunk == self.chunks:
+        #     to_send["finished"] = evt["finished"]
+        #
+        # if "error" in evt:
+        #     to_send["subtitle"] = "Something went wrong: " + evt["error_msg"]
+        #     to_send["error"] = evt["error_msg"]
 
         if self.callback:
-            self.callback(to_send)
+            self.callback(evt)
+            # self.callback(to_send)
 
 
 def export_video(file_id, out_dir, gui_callback=None, video_name="video.mp4"):
@@ -170,6 +172,7 @@ def export_video(file_id, out_dir, gui_callback=None, video_name="video.mp4"):
         backend.log.export_end(file_id)
     except Exception as exc:
         backend.log.export_err(file_id, str(exc))
+        print(logger)
         logger.log({"error": True, "error_msg": str(exc)})
         raise exc
 

@@ -672,7 +672,7 @@ def set_song(number, name, song_b64, is_path=False, document=None):
     }
 
 
-def export_file(document=None):
+def export_file(document=None, log_callback=print):
     if document is None:
         document = open_file_id
     files = get_files()
@@ -690,9 +690,12 @@ def export_file(document=None):
         shutil.rmtree(export_dir)
     os.mkdir(export_dir)
     try:
-        backend.video.export_video(document, export_dir, gui_callback=print, video_name=file_name+".mp4")
+        backend.video.export_video(document, export_dir,
+                                   gui_callback=log_callback,
+                                   video_name=file_name+".mp4"
+        )
     except Exception as exc:
-        fout = open("/Users/riccardosartori/Desktop/err.txt", "w")
+        fout = open("./err.txt", "w")
         fout.write(traceback.format_exc())
         fout.close()
 

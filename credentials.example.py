@@ -17,10 +17,6 @@ class Twitter:
     access_token_secret = ""
 
 
-class Youtube:
-    api_key = ""
-
-
 class Database:
     host = ""
     user = ""
