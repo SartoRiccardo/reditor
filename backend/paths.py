@@ -9,8 +9,9 @@ DATA_PATH = os.path.join(
     "data"
 )
 DOWNLOAD_PATH = os.path.join(
-    os.path.expanduser("~"),
-    "Downloads",
+    os.path.dirname(os.path.realpath(__file__)),
+    "..",
+    "exports",
 )
 LOG_PATH = os.path.join(
     DATA_PATH,

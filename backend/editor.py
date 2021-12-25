@@ -82,6 +82,8 @@ class ScenePart:
 def init():
     if not os.path.exists(DATA_PATH):
         os.mkdir(DATA_PATH)
+    if not os.path.exists(DOWNLOAD_PATH):
+        os.mkdir(DOWNLOAD_PATH)
 
     required_dirs = ["/assets", "/saves", "/saves/index.csv", "/logs", "/config.txt"]
 
@@ -710,6 +712,7 @@ def download_images(platform, target, options={}):
             id_re = r"comments\/(.+?)\/"
             target = re.search(id_re, target).group(1)
         image_urls = backend.requests.post_comments(target)
+        print(image_urls)
 
     if len(image_urls) == 0:
         return False
@@ -739,7 +742,7 @@ def download_images(platform, target, options={}):
         zip_path = tmp_dir+f"/{target}.zip"
         shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
     else:
-        document_name = f"{target}-auto"
+        document_name = f"{target}"
         make_automatic_video(document_name, image_urls, options)
 
     return True

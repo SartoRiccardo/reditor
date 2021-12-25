@@ -15,3 +15,19 @@ def get_videos():
     return rows
 
 
+def confirm_export(thread):
+    cur = conn.cursor()
+    cur.execute("UPDATE rdt_videos SET exported=TRUE WHERE thread=%s", [thread])
+    conn.commit()
+
+
+def config(key, value=None):
+    cur = conn.cursor()
+    if value is None:
+        cur.execute("SELECT value FROM config WHERE name=%s", [key])
+        rows = cur.fetchone()
+        return rows[0]
+    else:
+        pass #TODO
+
+

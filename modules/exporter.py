@@ -3,11 +3,12 @@ import time
 from random import randint
 import backend.database
 from datetime import datetime, timedelta
+import backend.editor
 
 
 class Exporter(threading.Thread):
     # UPLOAD_EVERY = 60*60*24
-    UPLOAD_EVERY = 10
+    UPLOAD_EVERY = 3
 
     def __init__(self):
         super().__init__()
@@ -27,6 +28,17 @@ class Exporter(threading.Thread):
             if len(videos) == 0:
                 continue
             chosen = Exporter.choose_video(videos)
+
+            bgm_dir = backend.database.config("rdt_bgmdir")
+            # backend.editor.download_images("askreddit", chosen["thread"], {"bgmDir": bgm_dir})
+
+            files = backend.editor.get_files()
+            if len(files) == 0:
+                continue
+            to_export = files[0]["id"]
+            # backend.editor.export_file(to_export)
+            backend.database.confirm_export(chosen["thread"])
+            # backend.editor.delete_file(to_export)
 
     def stop(self):
         self.active = False
