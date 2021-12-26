@@ -77,7 +77,8 @@ def reddit_comment_to_image(forest):
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
     if not hti:
-        hti = Html2Image(temp_path=tmp_dir, custom_flags=["--log-level=OFF", "--disable-gpu"])
+        hti = Html2Image(temp_path=tmp_dir,
+                         custom_flags=["--log-level=OFF", "--disable-gpu", "--default-background-color=0"])
         if os.path.exists(dl_dir):
             shutil.rmtree(dl_dir)
         if not os.path.exists(tmp_dir):
@@ -147,7 +148,8 @@ def reddit_to_image(submission, subreddit_name):
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
     if not hti:
-        hti = Html2Image(temp_path=tmp_dir, custom_flags=["--log-level=OFF", "--disable-gpu"])
+        hti = Html2Image(temp_path=tmp_dir,
+                         custom_flags=["--log-level=OFF", "--disable-gpu", "--default-background-color=0"])
         if os.path.exists(dl_dir):
             shutil.rmtree(dl_dir)
         if not os.path.exists(tmp_dir):
