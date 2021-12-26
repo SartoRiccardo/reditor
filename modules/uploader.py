@@ -64,7 +64,7 @@ class Uploader(threading.Thread):
                     "r ask reddit",
             "category": "22",
             "privacy": "public",
-            "file": f"{to_upload['path']}/video.mp4"
+            "file": f"{to_upload['path']}/{to_upload['id']}.mp4"
         }
         download_image(video_data["thumbnail"], f"{to_upload['path']}/thumbnail.png")
         upload(video, f"{to_upload['path']}/thumbnail.png", f"{to_upload['path']}/subtitles.srt")
