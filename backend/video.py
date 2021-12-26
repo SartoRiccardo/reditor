@@ -1,4 +1,5 @@
 import imageio
+import gc
 try:
     from moviepy.video.VideoClip import ImageClip
     from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
@@ -292,6 +293,8 @@ def export_video_wrapped(file_id, out_dir, video_name, logger=None):
                 elif isinstance(c, AudioFileClip):
                     audios.append(c)
 
+        gc.collect()
+
     bg_i = 0 if has_transitioned_once else 1
     clips[bg_i] = clips[bg_i]. \
         set_end(t). \
@@ -429,7 +432,6 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
 
 def composite_videos(paths, out_file, logger="bar"):
     clips = []
-    print(out_file)
 
     t = 0
     for i in range(len(paths)):
