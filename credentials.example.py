@@ -22,3 +22,7 @@ class Database:
     user = ""
     pswd = ""
     name = ""
+
+
+class Tesseract:
+    path = r""

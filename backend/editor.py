@@ -14,7 +14,6 @@ import pytesseract
 import re
 from html2image import Html2Image
 from random import randint
-from tkinter import filedialog, Tk
 pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
 
@@ -803,37 +802,6 @@ def detect_text(scene, crop, document=None):
         text = re.sub(pre, sub, text)
 
     return text.strip()
-
-
-def get_full_path(dial_id):
-    last_dir = get_config(NO_PROJECT, dial_id)
-
-    root = Tk()
-    root.withdraw()
-    root.wm_attributes('-topmost', 1)
-    folder = filedialog.askdirectory(title="Select folder", initialdir=last_dir)
-    root.update()
-
-    if folder:
-        write_config(NO_PROJECT, dial_id, folder)
-    return folder
-
-
-def get_image_path(dial_id):
-    last_dir = get_config(NO_PROJECT, dial_id)
-
-    root = Tk()
-    root.withdraw()
-    root.wm_attributes('-topmost', 1)
-    image = filedialog.askopenfilename(title="Select image",
-                filetypes=[('PNG FILES', '*.png'), ('JPG FILES', '*.jpg')],
-                initialdir=last_dir
-    )
-    root.update()
-
-    if image:
-        write_config(NO_PROJECT, dial_id, image)
-    return image
 
 
 def generate_thumbnail(thumb_text, thumb_source_type, thumb_source):

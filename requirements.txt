@@ -1,10 +1,10 @@
+pillow
 praw
 mutagen
 moviepy
 twitter
 urllib3
 imageio
-pillow
 proglog
 tesseract
 pytesseract

@@ -6,7 +6,9 @@ import json
 import shutil
 from html2image import Html2Image
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
+from credentials import Tesseract
+if len(Tesseract.path) > 0:
+    pytesseract.pytesseract.tesseract_cmd = Tesseract.path
 
 
 FONT = None
@@ -75,7 +77,7 @@ def reddit_comment_to_image(forest):
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
     if not hti:
-        hti = Html2Image(temp_path=tmp_dir, custom_flags="--log-level=OFF")
+        hti = Html2Image(temp_path=tmp_dir, custom_flags=["--log-level=OFF", "--disable-gpu"])
         if os.path.exists(dl_dir):
             shutil.rmtree(dl_dir)
         if not os.path.exists(tmp_dir):
@@ -145,7 +147,7 @@ def reddit_to_image(submission, subreddit_name):
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
     if not hti:
-        hti = Html2Image(temp_path=tmp_dir, custom_flags="--log-level=OFF")
+        hti = Html2Image(temp_path=tmp_dir, custom_flags=["--log-level=OFF", "--disable-gpu"])
         if os.path.exists(dl_dir):
             shutil.rmtree(dl_dir)
         if not os.path.exists(tmp_dir):
