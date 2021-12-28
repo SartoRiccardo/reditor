@@ -43,8 +43,10 @@ class Exporter(threading.Thread):
         if len(videos) == 0:
             return
         chosen = Exporter.choose_video(videos)
+        title = chosen["title"] if chosen["title"] else chosen["thread_title"]
 
         bgm_dir = backend.database.config("rdt_bgmdir")
+        Logger.log(f"Creating **{title}**", Logger.INFO)
         backend.editor.download_images("askreddit", chosen["thread"], {"bgmDir": bgm_dir})
 
         files = backend.editor.get_files()
@@ -52,10 +54,9 @@ class Exporter(threading.Thread):
             return
         to_export = files[0]["id"]
 
-        title = chosen["title"] if chosen["title"] else chosen["thread_title"]
         Logger.log(f"Exporting **{title}**", Logger.INFO)
         if not chosen["title"]:
-            Logger.log(f"No title or thumbnail for **{chosen['thread_title']}**", Logger.ERROR)
+            Logger.log(f"No title or thumbnail for **{chosen['thread_title']}**", Logger.WARN)
 
         backend.editor.export_file(to_export, log_callback=self.check_errors)
         if not self.error_exporting:
