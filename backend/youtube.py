@@ -147,5 +147,6 @@ def upload(video, thumbnail, captions):
         uploaded_id = initialize_upload(youtube, video)
         add_thumbnail(youtube, uploaded_id, thumbnail)
         add_captions(youtube, uploaded_id, captions)
+        return uploaded_id
     except HttpError as e:
-        print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+        raise Exception("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))

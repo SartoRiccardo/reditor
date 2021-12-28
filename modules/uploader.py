@@ -37,7 +37,7 @@ class Uploader(threading.Thread):
 
     def task(self):
         while datetime.now() < self.last_loop + timedelta(days=Uploader.UPLOAD_EVERY_DAYS) and \
-                self.active and 0:
+                self.active:
             time.sleep(10)
         if not self.active:
             return
@@ -67,9 +67,17 @@ class Uploader(threading.Thread):
             "file": f"{to_upload['path']}/{to_upload['id']}.mp4"
         }
         download_image(video_data["thumbnail"], f"{to_upload['path']}/thumbnail.png")
-        upload(video, f"{to_upload['path']}/thumbnail.png", f"{to_upload['path']}/subtitles.srt")
+        try:
+            video_id = upload(video, f"{to_upload['path']}/thumbnail.png", f"{to_upload['path']}/subtitles.srt")
+            url = f"https://www.youtube.com/watch?v=${video_id}"
 
-        self.active = False
+            backend.database.confirm_video_upload(to_upload["id"], url)
+            if os.path.exists(to_upload['path']):
+                os.remove(f"{to_upload['path']}/thumbnail.png")
+                os.remove(f"{to_upload['path']}/subtitles.srt")
+                os.remove(f"{to_upload['path']}/{to_upload['id']}.mp4")
+        except Exception as exc:
+            Logger.log(str(exc), Logger.ERROR)
 
     def stop(self):
         self.active = False
@@ -91,6 +99,3 @@ class Uploader(threading.Thread):
     @staticmethod
     def choose_video(videos):
         return videos[randint(0, len(videos)-1)]
-
-    def upload(self):
-        pass
