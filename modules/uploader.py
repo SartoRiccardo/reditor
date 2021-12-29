@@ -23,8 +23,8 @@ class Uploader(threading.Thread):
         self.active = True
 
     def adjust_last_loop(self):
-        self.last_loop.replace(hour=Uploader.UPLOAD_HOUR, minute=Uploader.UPLOAD_MINUTE,
-                               second=0, microsecond=0)
+        self.last_loop = self.last_loop.replace(hour=Uploader.UPLOAD_HOUR, minute=Uploader.UPLOAD_MINUTE,
+                                                second=0, microsecond=0)
         if self.last_loop > datetime.now():
             self.last_loop -= timedelta(days=1)
 
