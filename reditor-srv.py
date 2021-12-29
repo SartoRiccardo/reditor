@@ -14,11 +14,13 @@ def remove_stop():
 
 if __name__ == '__main__':
     up = modules.uploader.Uploader()
-    up.start()
     exp = modules.exporter.Exporter()
-    exp.start()
     c = modules.nohupclearer.NoHupClearer()
+    
     c.start()
+    time.sleep(1)
+    up.start()
+    exp.start()
 
     while not should_stop():
         time.sleep(10)

@@ -16,13 +16,11 @@ class Exporter(threading.Thread):
 
     def __init__(self):
         super().__init__()
-        self.last_loop = datetime.now()
+        self.last_loop = datetime.now() - timedelta(seconds=Exporter.UPLOAD_EVERY*10)
         self.active = True
-        self.first_loop = True
         self.error_exporting = False
 
     def run(self):
-        self.first_loop = True
         while self.active:
             try:
                 self.task()
@@ -32,10 +30,8 @@ class Exporter(threading.Thread):
     def task(self):
         self.error_exporting = False
         while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.UPLOAD_EVERY) or
-                len(Exporter.get_video_backlog()) > 3) and \
-                self.active and not self.first_loop:
+                len(Exporter.get_video_backlog()) > 3) and self.active:
             time.sleep(10)
-        self.first_loop = False
         if not self.active:
             return
         self.last_loop = datetime.now()

@@ -5,7 +5,7 @@ import os
 
 
 class NoHupClearer(threading.Thread):
-    CLEAR_EVERY = 60*60*24 * 2
+    CLEAR_EVERY = 60*60*24 * 10
 
     def __init__(self):
         super().__init__()
