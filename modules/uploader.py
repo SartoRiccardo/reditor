@@ -51,6 +51,7 @@ class Uploader(threading.Thread):
         to_upload = self.choose_video(videos)
         video_data = backend.database.get_video(to_upload["id"])
 
+        Logger.log(f"Uploading {video_data['title']}", Logger.INFO)
         video = {
             "title": video_data["title"] + " #askreddit #funny",
             "description": video_data["title"] + "\n"
@@ -72,6 +73,7 @@ class Uploader(threading.Thread):
             url = f"https://www.youtube.com/watch?v=${video_id}"
 
             backend.database.confirm_video_upload(to_upload["id"], url)
+            Logger.log(f"Uploaded {video_data['title']} to {url}", Logger.SUCCESS)
             if os.path.exists(to_upload['path']):
                 os.remove(f"{to_upload['path']}/thumbnail.png")
                 os.remove(f"{to_upload['path']}/subtitles.srt")
