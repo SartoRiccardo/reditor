@@ -5,6 +5,7 @@ import backend.database
 from datetime import datetime, timedelta
 import backend.editor
 import os
+import gc
 from backend.paths import DOWNLOAD_PATH
 import requests
 from modules.logger import Logger
@@ -63,6 +64,7 @@ class Exporter(threading.Thread):
             backend.database.confirm_export(chosen["thread"])
         backend.editor.delete_file(to_export)
         Logger.log(f"Exported **{title}**", Logger.SUCCESS)
+        gc.collect()
 
     def stop(self):
         self.active = False
