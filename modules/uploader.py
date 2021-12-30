@@ -13,7 +13,7 @@ from backend.requests import download_image
 
 class Uploader(threading.Thread):
     UPLOAD_EVERY_DAYS = 1
-    UPLOAD_HOUR = 21
+    UPLOAD_HOUR = 21  # UTC+000
     UPLOAD_MINUTE = 50
 
     def __init__(self):
@@ -53,12 +53,13 @@ class Uploader(threading.Thread):
 
         Logger.log(f"Uploading {video_data['title']}", Logger.INFO)
         video = {
-            "title": video_data["title"] + " #askreddit #funny",
+            "title": video_data["title"],
             "description": video_data["title"] + "\n"
                            "We ask this question to r/AskReddit, "
                            "let's see which replies derive from this! Enjoy! "
                            "Subscribe for more memes and stuff that's hopefully funny "
-                           "(it is trust me on this one).",
+                           "(it is trust me on this one)." + "\n\n"
+                           "#askreddit #funny",
             "tags": "meme,memes,meme compilation,memes compilation,meme compilations," \
                     "memes compilations,based,cringe,funny,reddit,soy,soyboy,zoomer,boomer," \
                     "wojak,pepe,wojack,4chan,4channel,askreddit,r/askreddit,ask reddit," \
@@ -70,7 +71,7 @@ class Uploader(threading.Thread):
         download_image(video_data["thumbnail"], f"{to_upload['path']}/thumbnail.png")
         try:
             video_id = upload(video, f"{to_upload['path']}/thumbnail.png", f"{to_upload['path']}/subtitles.srt")
-            url = f"https://www.youtube.com/watch?v=${video_id}"
+            url = f"https://www.youtube.com/watch?v={video_id}"
 
             backend.database.confirm_video_upload(to_upload["id"], url)
             Logger.log(f"Uploaded {video_data['title']} to {url}", Logger.SUCCESS)
@@ -78,6 +79,7 @@ class Uploader(threading.Thread):
                 os.remove(f"{to_upload['path']}/thumbnail.png")
                 os.remove(f"{to_upload['path']}/subtitles.srt")
                 os.remove(f"{to_upload['path']}/{to_upload['id']}.mp4")
+                os.rmdir(to_upload['path'])
         except Exception as exc:
             Logger.log(str(exc), Logger.ERROR)
 
