@@ -13,7 +13,7 @@ from backend.requests import download_image
 
 class Uploader(threading.Thread):
     UPLOAD_EVERY_DAYS = 1
-    UPLOAD_HOUR = 21  # UTC+000
+    UPLOAD_HOUR = 21 - 1  # UTC+000, I live in UTC+001
     UPLOAD_MINUTE = 50
 
     def __init__(self):
@@ -54,7 +54,7 @@ class Uploader(threading.Thread):
         Logger.log(f"Uploading {video_data['title']}", Logger.INFO)
         video = {
             "title": video_data["title"],
-            "description": video_data["title"] + "\n"
+            "description": video_data["thread_title"] + "\n"
                            "We ask this question to r/AskReddit, "
                            "let's see which replies derive from this! Enjoy! "
                            "Subscribe for more memes and stuff that's hopefully funny "
