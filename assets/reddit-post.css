@@ -99,12 +99,12 @@ span.icon {
     vertical-align: middle;
     width: 20px;
 }
-span.icon.upvote::before { content: "\f2d1" }
-span.icon.downvote::before { content: "\f17c" }
-span.icon.comment::before { content: "\f15c" }
+span.icon.upvote::before { content: "\f2d8" }
+span.icon.downvote::before { content: "\f17e" }
+span.icon.comment::before { content: "\f15e" }
 span.icon.gift-award::before { content: "\f11f" }
-span.icon.options::before { content: "\f202" }
-span.icon.share::before { content: "\f24d" }
+span.icon.options::before { content: "\f204" }
+span.icon.share::before { content: "\f253" }
 
 .post span { display: inline-block; }
 
