@@ -7,7 +7,7 @@ from backend.paths import DOWNLOAD_PATH
 from datetime import datetime, timedelta
 import os
 from modules.logger import Logger
-from backend.youtube import upload
+from backend.youtube import upload, UploadDetailException
 from backend.requests import download_image
 
 
@@ -80,6 +80,11 @@ class Uploader(threading.Thread):
                 os.remove(f"{to_upload['path']}/subtitles.srt")
                 os.remove(f"{to_upload['path']}/{to_upload['id']}.mp4")
                 os.rmdir(to_upload['path'])
+        except UploadDetailException as exc:
+            url = f"https://www.youtube.com/watch?v={exc.uploaded_id}"
+            backend.database.confirm_video_upload(to_upload["id"], url)
+            Logger.log(f"Uploaded {video_data['title']} to {url}", Logger.SUCCESS)
+            Logger.log(str(exc), Logger.ERROR)
         except Exception as exc:
             Logger.log(str(exc), Logger.ERROR)
 

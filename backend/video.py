@@ -447,6 +447,10 @@ def composite_videos(paths, out_file, logger="bar"):
     temp_audio_path = out_file[:-4]+"-aud.mp4"
     video.write_videofile(out_file, fps=FPS, audio_codec="aac", logger=logger,
                           temp_audiofile=temp_audio_path)
+    video.close()
+    for clip in clips:
+        clip.close()
+    gc.collect()
 
 
 def download_audios_for(s, cache_dir, document=None):

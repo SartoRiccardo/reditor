@@ -3,6 +3,7 @@ import httplib2
 import os
 import random
 import time
+from PIL import Image
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -47,6 +48,12 @@ API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
 
 VALID_PRIVACY_STATUSES = ('public', 'private', 'unlisted')
+
+
+class UploadDetailException(Exception):
+    def __init__(self, message, uploaded_id):
+        super().__init__(message)
+        self.uploaded_id = uploaded_id
 
 
 def get_authenticated_service():
@@ -147,8 +154,21 @@ def upload(video, thumbnail, captions):
     youtube = get_authenticated_service()
     try:
         uploaded_id = initialize_upload(youtube, video)
-        add_thumbnail(youtube, uploaded_id, thumbnail)
-        add_captions(youtube, uploaded_id, captions)
-        return uploaded_id
     except HttpError as e:
         raise Exception("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+
+    try:
+        # YT thumbnails can't be > 2mb
+        while os.stat(thumbnail).st_size > 2000000:
+            thumb = Image.open(thumbnail)
+            width, height = thumb.size
+            thumb = thumb.resize((int(width*0.9), int(height*0.9)), Image.ANTIALIAS)
+            thumb.save(thumbnail)
+            thumb.close()
+        add_thumbnail(youtube, uploaded_id, thumbnail)
+
+        add_captions(youtube, uploaded_id, captions)
+    except HttpError as e:
+        raise UploadDetailException("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content), uploaded_id)
+
+    return uploaded_id
