@@ -60,11 +60,14 @@ def get_authenticated_service():
         credential_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'credentials.json')
         store = Storage(credential_path)
         credentials = store.get()
+        try:
+            credentials.refresh(httplib2.Http())
+        except:
+            pass
+
         if not credentials or credentials.invalid:
                 flow = client.flow_from_clientsecrets(CLIENT_SECRETS_FILE, SCOPES)
                 credentials = tools.run_flow(flow, store)
-        else:
-            credentials.refresh(httplib2.Http())
         return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 
@@ -172,3 +175,7 @@ def upload(video, thumbnail, captions):
         raise UploadDetailException("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content), uploaded_id)
 
     return uploaded_id
+
+
+if __name__ == '__main__':
+    get_authenticated_service()
