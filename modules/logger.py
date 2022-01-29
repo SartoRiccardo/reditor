@@ -31,8 +31,8 @@ class Logger:
         elif severity == Logger.WARN:
             title = "Warning"
 
-        webhook_url, debug = backend.database.config(["rdt_logger", "rdt_logger_debug"])
-        if not (bool(debug) or debug is None) and severity == Logger.DEBUG:
+        webhook_url, debug = backend.database.config(["rdt_logger", "rdt_debug"])
+        if not (debug == "True") and severity == Logger.DEBUG:
             return
 
         embed = {"embeds": [{
