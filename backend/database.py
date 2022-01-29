@@ -79,9 +79,11 @@ def confirm_export(thread):
 def config(key, value=None):
     cur = conn.cursor()
     if value is None:
+        if type(key) == list:
+            return [config(k) for k in key]
         cur.execute("SELECT value FROM config WHERE name=%s", [key])
         rows = cur.fetchone()
-        return rows[0]
+        return rows[0] if rows else None
     else:
         cur.execute("UPDATE config SET value=%s WHERE name=%s", [value, key])
         conn.commit()
