@@ -9,14 +9,15 @@ import gc
 from backend.paths import DOWNLOAD_PATH
 import requests
 from modules.logger import Logger
+import traceback
 
 
 class Exporter(threading.Thread):
-    UPLOAD_EVERY = 60*60*12
+    EXPORT_EVERY = 60*60*12
 
     def __init__(self):
         super().__init__()
-        self.last_loop = datetime.now() - timedelta(seconds=Exporter.UPLOAD_EVERY*10)
+        self.last_loop = datetime.now() - timedelta(seconds=Exporter.EXPORT_EVERY*10)
         self.active = True
         self.error_exporting = False
 
@@ -24,12 +25,12 @@ class Exporter(threading.Thread):
         while self.active:
             try:
                 self.task()
-            except Exception as exc:
-                print(exc)
+            except:
+                Logger.log(f"```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
 
     def task(self):
         self.error_exporting = False
-        while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.UPLOAD_EVERY) or
+        while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.EXPORT_EVERY) or
                 len(Exporter.get_video_backlog()) > 3) and self.active:
             time.sleep(10)
         if not self.active:
