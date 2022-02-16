@@ -74,6 +74,20 @@ def make_thumbnail(text, image_path, save_path, max_chars_per_line=20):
     base.save(save_path)
 
 
+def init_hti(tmp_dir, dl_dir):
+    global hti
+    if not hti:
+        hti = Html2Image(temp_path=dl_dir,
+                         custom_flags=["--log-level=OFF", "--disable-gpu", "--default-background-color=0"])
+        if os.path.exists(dl_dir):
+            shutil.rmtree(dl_dir)
+        if not os.path.exists(tmp_dir):
+            os.mkdir(tmp_dir)
+        os.mkdir(dl_dir)
+
+        hti.output_path = dl_dir
+
+
 def init_voices_config():
     global video_voices_config
     fin = open("video-voices.json")
@@ -94,19 +108,10 @@ def get_voice_for_scene():
 def reddit_comment_to_image(forest):
     global hti, html_template_comment, css_comment
     init_voices_config()
-
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
-    if not hti:
-        hti = Html2Image(temp_path=dl_dir,
-                         custom_flags=["--log-level=OFF", "--disable-gpu", "--default-background-color=0"])
-        if os.path.exists(dl_dir):
-            shutil.rmtree(dl_dir)
-        if not os.path.exists(tmp_dir):
-            os.mkdir(tmp_dir)
-        os.mkdir(dl_dir)
+    init_hti(tmp_dir, dl_dir)
 
-        hti.output_path = dl_dir
     if not html_template_comment:
         fin = open("./assets/reddit-comment-template.html")
         html_template_comment = fin.read()
@@ -138,28 +143,7 @@ def reddit_comment_to_image(forest):
     raw_scene = [row.split("-") for row in re.split("\n{2,}", text)]
 
     script = backend.utils.get_script_comment(forest)
-    script_i = 0
-    try:
-        raw_script = []
-        for s in raw_scene:
-            s = [float(num) for num in s]
-            x, y, w, h, wait = s
-            scene_obj = {
-                "text": "" if wait == 0 else script[script_i],
-                "voice": get_voice_for_scene(),
-                "crop": {"x": x, "y": y, "w": w, "h": h},
-                "wait": wait,
-            }
-            if wait > 0:
-                script_i += 1
-            raw_script.append(backend.editor.ScenePart.object_to_text(scene_obj))
-        raw_script = "\n\n".join(raw_script)
-
-        fout = open(full_path+".txt", "w")
-        fout.write(raw_script)
-        fout.close()
-    except:
-        print(traceback.format_exc())
+    build_script(full_path, raw_scene, script)
 
     return full_path
 
@@ -167,19 +151,10 @@ def reddit_comment_to_image(forest):
 def reddit_to_image(submission, subreddit_name):
     global hti, html_template_post, css_post
     init_voices_config()
-
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
-    if not hti:
-        hti = Html2Image(temp_path=dl_dir,
-                         custom_flags=["--log-level=OFF", "--disable-gpu", "--default-background-color=0"])
-        if os.path.exists(dl_dir):
-            shutil.rmtree(dl_dir)
-        if not os.path.exists(tmp_dir):
-            os.mkdir(tmp_dir)
-        os.mkdir(dl_dir)
+    init_hti(tmp_dir, dl_dir)
 
-        hti.output_path = dl_dir
     if not html_template_post:
         fin = open("./assets/reddit-post-template.html")
         html_template_post = fin.read()
@@ -238,10 +213,19 @@ def reddit_to_image(submission, subreddit_name):
 
     script = backend.utils.get_script(submission.selftext)
     script.insert(0, submission.title)
+    build_script(full_path, raw_scene, script)
+
+    return full_path
+
+
+def build_script(full_path, raw_scene, script):
     script_i = 0
     try:
         raw_script = []
         for s in raw_scene:
+            if script_i >= len(script):
+                break
+
             s = [float(num) for num in s]
             x, y, w, h, wait = s
             scene_obj = {
@@ -258,10 +242,13 @@ def reddit_to_image(submission, subreddit_name):
         fout = open(full_path+".txt", "w")
         fout.write(raw_script)
         fout.close()
+    except IndexError:
+        print(script_i)
+        print(script)
+        print(raw_scene)
+        exit(0)
     except:
         print(traceback.format_exc())
-
-    return full_path
 
 
 init()
