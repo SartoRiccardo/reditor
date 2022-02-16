@@ -82,9 +82,12 @@ def init_voices_config():
 
 
 def get_voice_for_scene():
+    if video_voices_config is None:
+        init_voices_config()
+
     chances = []
     for voice in video_voices_config["voices"]:
-        chances += [voice["id"]] * voice["weight"]
+        chances += [voice["name"]] * voice["weight"]
     return random.choice(chances)
 
 
@@ -163,6 +166,7 @@ def reddit_comment_to_image(forest):
 
 def reddit_to_image(submission, subreddit_name):
     global hti, html_template_post, css_post
+    init_voices_config()
 
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
