@@ -8,6 +8,7 @@ from html2image import Html2Image
 import pytesseract
 import random
 from credentials import Tesseract
+import traceback
 if len(Tesseract.path) > 0:
     pytesseract.pytesseract.tesseract_cmd = Tesseract.path
 
@@ -155,7 +156,7 @@ def reddit_comment_to_image(forest):
         fout.write(raw_script)
         fout.close()
     except:
-        pass
+        print(traceback.format_exc())
 
     return full_path
 
@@ -254,7 +255,7 @@ def reddit_to_image(submission, subreddit_name):
         fout.write(raw_script)
         fout.close()
     except:
-        pass
+        print(traceback.format_exc())
 
     return full_path
 
