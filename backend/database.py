@@ -5,6 +5,7 @@ conn = psycopg2.connect(
         user=credentials.Database.user, password=credentials.Database.pswd,
         database=credentials.Database.name, host=credentials.Database.host
 )
+conn.set_session(autocommit=True)
 
 
 def get_videos():
