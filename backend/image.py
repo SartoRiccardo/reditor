@@ -6,6 +6,7 @@ import json
 import shutil
 from html2image import Html2Image
 import pytesseract
+import random
 from credentials import Tesseract
 if len(Tesseract.path) > 0:
     pytesseract.pytesseract.tesseract_cmd = Tesseract.path
@@ -24,6 +25,7 @@ html_template_post = None
 css_post = None
 html_template_comment = None
 css_comment = None
+video_voices_config = None
 
 
 def init():
@@ -71,8 +73,23 @@ def make_thumbnail(text, image_path, save_path, max_chars_per_line=20):
     base.save(save_path)
 
 
+def init_voices_config():
+    global video_voices_config
+    fin = open("video-voices.json")
+    video_voices_config = json.loads(fin.read())
+    fin.close()
+
+
+def get_voice_for_scene():
+    chances = []
+    for voice in video_voices_config["voices"]:
+        chances += [voice["id"]] * voice["weight"]
+    return random.choice(chances)
+
+
 def reddit_comment_to_image(forest):
     global hti, html_template_comment, css_comment
+    init_voices_config()
 
     tmp_dir = backend.paths.DATA_PATH + "/tmp"
     dl_dir = tmp_dir + "/download-selfposts"
@@ -103,6 +120,7 @@ def reddit_comment_to_image(forest):
     full_path = dl_dir + "/" + filename
     image = Image.open(full_path).convert("RGBA")
     width, height = image.size
+    y = 1
     for y in range(1, height):
         if image.getpixel((int(width/2), y))[3] != 0:
             break
@@ -124,7 +142,7 @@ def reddit_comment_to_image(forest):
             x, y, w, h, wait = s
             scene_obj = {
                 "text": "" if wait == 0 else script[script_i],
-                "voice": "male-1",
+                "voice": get_voice_for_scene(),
                 "crop": {"x": x, "y": y, "w": w, "h": h},
                 "wait": wait,
             }
@@ -223,7 +241,7 @@ def reddit_to_image(submission, subreddit_name):
             x, y, w, h, wait = s
             scene_obj = {
                 "text": "" if wait == 0 else script[script_i],
-                "voice": "male-1",
+                "voice": get_voice_for_scene(),
                 "crop": {"x": x, "y": y, "w": w, "h": h},
                 "wait": wait,
             }

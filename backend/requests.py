@@ -13,10 +13,30 @@ import backend.editor
 
 http = urllib3.PoolManager()
 VOICES = {
-    "male-2": "Joey",
-    "male-1": "Matthew",
-    "female-1": "Kendra",
-    "female-2": "Kimberly",
+    "male-2": {
+        "id": "Joey",
+        "engine": "standard"
+    },
+    "male-1": {
+        "id": "Matthew",
+        "engine": "standard"
+    },
+    "female-1": {
+        "id": "Kendra",
+        "engine": "standard"
+    },
+    "female-2": {
+        "id": "Kimberly",
+        "engine": "standard"
+    },
+    "male-2-neural": {
+        "id": "Joey",
+        "engine": "neural"
+    },
+    "male-1-neural": {
+        "id": "Matthew",
+        "engine": "neural"
+    },
 }
 MAX_RATIO = 3/2
 MIN_RATIO = 1/MAX_RATIO
@@ -303,11 +323,12 @@ def get_tts_audio(text, voice):
     signed_headers = "content-type;host;x-amz-date"
 
     body = {
+        "Engine": VOICES[voice]["engine"],
         "OutputFormat": "mp3",
         "TextType": "text",
         "SampleRate": "22050",
         "Text": text,
-        "VoiceId": VOICES[voice],
+        "VoiceId": VOICES[voice]["id"],
     }
     body = json.dumps(body)
 

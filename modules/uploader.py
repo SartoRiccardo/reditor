@@ -70,6 +70,7 @@ class Uploader(threading.Thread):
             "file": f"{to_upload['path']}/{to_upload['id']}.mp4"
         }
         download_image(video_data["thumbnail"], f"{to_upload['path']}/thumbnail.png")
+        video_id = None
         try:
             video_id = upload(video, f"{to_upload['path']}/thumbnail.png", f"{to_upload['path']}/subtitles.srt")
             url = f"https://www.youtube.com/watch?v={video_id}"
@@ -87,6 +88,9 @@ class Uploader(threading.Thread):
             Logger.log(f"Uploaded {video_data['title']} to {url}", Logger.SUCCESS)
             Logger.log(f"```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
         except Exception as exc:
+            if video_id:
+                url = f"https://www.youtube.com/watch?v={video_id}"
+                Logger.log(f"Uploaded {video_data['title']} to {url}", Logger.SUCCESS)
             Logger.log(f"```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
 
     def stop(self):
