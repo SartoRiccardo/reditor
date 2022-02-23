@@ -53,6 +53,11 @@ class Uploader(threading.Thread):
         video_data = backend.database.get_video(to_upload["id"])
 
         Logger.log(f"Uploading {video_data['title']}", Logger.INFO)
+
+        title_safe = self.turn_to_path(video_data["title"])
+        video_path = f"{to_upload['path']}/{title_safe}.mp4"
+        os.rename(f"{to_upload['path']}/{to_upload['id']}.mp4", video_path)
+
         video = {
             "title": video_data["title"],
             "description": f"{video_data['thread_title']}\n"
@@ -67,7 +72,7 @@ class Uploader(threading.Thread):
                     "r ask reddit",
             "category": "22",
             "privacy": "public",
-            "file": f"{to_upload['path']}/{to_upload['id']}.mp4"
+            "file": video_path
         }
         download_image(video_data["thumbnail"], f"{to_upload['path']}/thumbnail.png")
         video_id = None
@@ -113,3 +118,14 @@ class Uploader(threading.Thread):
     @staticmethod
     def choose_video(videos):
         return videos[randint(0, len(videos)-1)]
+
+    @staticmethod
+    def turn_to_path(text):
+        allowed = "qwertyuiopasdfghjklzxcvbnm1234567890"
+        ret = ""
+        for char in text.lower():
+            if char in allowed:
+                ret += char
+            elif char == " ":
+                ret += "_"
+        return ret[:100]
