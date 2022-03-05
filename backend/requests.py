@@ -2,7 +2,9 @@ from credentials import Reddit, Amazon, Twitter
 import json
 import urllib3
 import urllib.parse
+from random import random
 import os
+import re
 import hashlib
 import hmac
 import datetime
@@ -41,11 +43,24 @@ VOICES = {
 MAX_RATIO = 3/2
 MIN_RATIO = 1/MAX_RATIO
 
+COMMENT_CHANCE = 1/4
+
 
 class ImageLink:
     def __init__(self, path, is_url):
         self.path = path
         self.is_url = is_url
+
+
+class MediaPost:
+    def __init__(self, url, title, comment=None):
+        self.url = url
+        self.title = title
+        self.comment = comment
+        self.path = None
+
+    def __str__(self):
+        return f"<url={self.url} title='{self.title}' comment='{self.comment}'>"
 
 
 class IntVar:
@@ -257,6 +272,102 @@ def get_simplified_nested_comments(forest, max_comments, current_comments=None, 
     return ret
 
 
+def media_submissions(sub, max_scenes=100000, max_comment_chars=80):
+    """
+    Fetches a subreddit's top submissions.
+    :param sub: str: The name of the subreddit.
+    :param max_scenes: int: Max number of posts to download.
+    :return: ImageLink[]: A list of URLs leading to the images.
+    """
+    reddit = praw.Reddit(
+        client_id=Reddit.client_id,
+        client_secret=Reddit.client_secret,
+        user_agent=Reddit.user_agent,
+        check_for_updates="False",
+        comment_kind="t1",
+        message_kind="t4",
+        redditor_kind="t2",
+        submission_kind="t3",
+        subreddit_kind="t5",
+        trophy_kind="t6",
+        oauth_url="https://oauth.reddit.com",
+        reddit_url="https://www.reddit.com",
+        short_url="https://redd.it"
+    )
+    reddit.read_only = True
+
+    try:
+        submission_lists = [reddit.subreddit(sub).top("week"), reddit.subreddit(sub).hot()]
+
+        ret = []
+        for submissions in submission_lists:
+            for s in submissions:
+                if len(ret) >= max_scenes:
+                    break
+
+                if s.over_18 or s.stickied or not hasattr(s, "post_hint"):
+                    continue
+
+                post = None
+                if s.post_hint == "hosted:video":
+                    media_url = s.secure_media["reddit_video"]["fallback_url"]
+                    post = MediaPost(media_url, s.title)
+                elif s.post_hint == "rich:video":
+                    try:
+                        media_url = s.preview["reddit_video_preview"]["fallback_url"]
+                        post = MediaPost(media_url, s.title)
+                    except:
+                        pass
+                elif s.post_hint == "image":
+                    source = s.preview["images"][0]["source"]
+                    # Is a GIF
+                    if "variants" in s.preview["images"][0].keys() \
+                            and "mp4" in s.preview["images"][0]["variants"].keys():
+                        source = s.preview["images"][0]["variants"]["mp4"]["source"]
+
+                    image_url = source["url"]
+                    if MIN_RATIO <= source["width"]/source["height"] <= MAX_RATIO and \
+                            image_url not in ret:
+                        post = MediaPost(image_url, s.title)
+
+                if post:
+                    if random() < COMMENT_CHANCE:
+                        comment = backend.utils.polish_comment(load_first_comment(s.id, reddit))
+                        if "\n" not in comment and len(comment) <= max_comment_chars:
+                            post.comment = comment
+                    ret.append(post)
+
+        return ret
+
+    except Exception as ex:
+        print(f"Exception: {ex}")
+        return []
+
+
+def load_first_comment(post_id, reddit=None):
+    if not reddit:
+        reddit = praw.Reddit(
+            client_id=Reddit.client_id,
+            client_secret=Reddit.client_secret,
+            user_agent=Reddit.user_agent,
+            check_for_updates="False",
+            comment_kind="t1",
+            message_kind="t4",
+            redditor_kind="t2",
+            submission_kind="t3",
+            subreddit_kind="t5",
+            trophy_kind="t6",
+            oauth_url="https://oauth.reddit.com",
+            reddit_url="https://www.reddit.com",
+            short_url="https://redd.it"
+        )
+        reddit.read_only = True
+
+    submission = reddit.submission(post_id)
+    for comment in submission.comments:
+        return comment.body
+
+
 def twitter_user_images(user):
     """
     Fetches a twitter account's top submissions.
@@ -363,17 +474,27 @@ def get_tts_audio(text, voice):
     return resp.data
 
 
-def download_resource(url, file_path):
-    download_image(url, file_path)
+def download_resource(url, file_path, auto_ext=False):
+    return download_image(url, file_path, auto_ext=auto_ext)
 
 
-def download_image(url, file_path):
-    stdout = open(file_path, "wb")
-    response = http.request("GET", url, preload_content=False)
-    for chunk in response.stream(1024):
-        stdout.write(chunk)
-    response.release_conn()
+def download_image(url, file_path, auto_ext=False):
+    try:
+        response = http.request("GET", url, preload_content=False)
+        if auto_ext:
+            content_type = response.headers['Content-Type']
+            regex = r".+/(.+?)(?:$|;)"
+            ext = re.findall(regex, content_type)[0]
+            file_path += f".{ext}"
 
-    if response.status == 404:
-        os.remove(file_path)
-        return None
+        stdout = open(file_path, "wb")
+        for chunk in response.stream(1024):
+            stdout.write(chunk)
+        response.release_conn()
+
+        if response.status == 404:
+            os.remove(file_path)
+            return None
+        return file_path
+    except:
+        print(f"Error for {url}")

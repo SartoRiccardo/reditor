@@ -403,22 +403,29 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
             subtitles.append(Subtitle(part["text"], complete_video_t+t, complete_video_t+t+part_audio.duration))
             wait_length += part_audio.duration
 
-        crop = part["crop"]
-        x = int(new_w*crop["x"]/100)
-        y = int(new_h*crop["y"]/100)
-        w = int(new_w*crop["w"]/100)
-        h = int(new_h*crop["h"]/100)
-        part_image = img_raw.crop(x1=x, y1=y, width=w, height=h)
-        if is_last:
-            part_image = CompositeVideoClip([part_image])
-        part_image = part_image. \
-            set_position((
-                (VIDEO_SIZE[0] - new_w) / 2 + x,
-                (VIDEO_SIZE[1] - new_h) / 2 + y
-            )). \
-            set_start(t)
+        if "crop" in part:
+            crop = part["crop"]
+            x = int(new_w*crop["x"]/100)
+            y = int(new_h*crop["y"]/100)
+            w = int(new_w*crop["w"]/100)
+            h = int(new_h*crop["h"]/100)
+            part_image = img_raw.crop(x1=x, y1=y, width=w, height=h)
+            if is_last:
+                part_image = CompositeVideoClip([part_image])
+            part_image = part_image. \
+                set_position((
+                    (VIDEO_SIZE[0] - new_w) / 2 + x,
+                    (VIDEO_SIZE[1] - new_h) / 2 + y
+                )). \
+                set_start(t)
+            clips.append(part_image)
 
-        clips.append(part_image)
+        if "reaction" in part:
+            pass
+
+        if "text" in part:
+            pass
+
         t = wait_length
 
     if is_last:
