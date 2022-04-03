@@ -522,22 +522,28 @@ def get_scene_info(scene, file=None):
 
     duration = get_scene_duration(scene, file)
 
-    image = None
-    img_path = scene_dir+"/image.png"
-    if os.path.exists(scene_dir+"/image.png"):
-        imagebin = open(scene_dir+"/image.png", "rb")
-        image = "data:image/png;base64," + base64.b64encode(imagebin.read()).decode()
+    media = None
+    media_path = scene_dir+"/media.png"
+    if os.path.exists(scene_dir+"/media.png"):
+        imagebin = open(scene_dir+"/media.png", "rb")
+        media = "data:image/png;base64," + base64.b64encode(imagebin.read()).decode()
         imagebin.close()
-    elif os.path.exists(scene_dir+"/image.jpg"):
-        imagebin = open(scene_dir+"/image.jpg", "rb")
-        img_path = scene_dir+"/image.jpg"
-        image = "data:image/jpeg;base64," + base64.b64encode(imagebin.read()).decode()
+    elif os.path.exists(scene_dir+"/media.jpeg"):
+        imagebin = open(scene_dir+"/media.jpeg", "rb")
+        media_path = scene_dir+"/media.jpeg"
+        media = "data:image/jpeg;base64," + base64.b64encode(imagebin.read()).decode()
         imagebin.close()
+    elif os.path.exists(scene_dir+"/media.mp4"):
+        media_path = scene_dir+"/media.mp4"
+        media = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+    elif os.path.exists(scene_dir+"/media.gif"):
+        media_path = scene_dir+"/media.gif"
+        media = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
 
     return {
         "number": scene,
-        "image": image,
-        "image_path": img_path,
+        "image": media,
+        "media_path": media_path,
         "script": script,
         "last_change": os.path.getmtime(scene_dir+"/script.txt"),
         "duration": duration

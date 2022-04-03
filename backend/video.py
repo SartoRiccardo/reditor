@@ -1,7 +1,8 @@
 import imageio
+import gizeh
 import gc
 try:
-    from moviepy.video.VideoClip import ImageClip
+    from moviepy.video.VideoClip import ImageClip, TextClip
     from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
     from moviepy.video.io.VideoFileClip import VideoFileClip
     from moviepy.audio.io.AudioFileClip import AudioFileClip
@@ -36,6 +37,8 @@ from proglog import TqdmProgressBarLogger
 
 
 WHITE = (255, 255, 255)
+CAPTION_TEXT_COLOR = "gray13"  # (33, 33, 33)
+CAPTION_BG_COLOR = (236, 239, 241)
 SIZES = {
     720: (1280, 720),
     1080: (1920, 1080),
@@ -43,8 +46,9 @@ SIZES = {
 VIDEO_SIZE = SIZES[720]
 SOUNDTRACK_FADE_TIME = 1
 VIDEO_FADE_TIME = 1
-FPS = 25
+FPS = 1#25
 BR = "\n"
+REACTIONS_PATH = os.path.join("assets", "reactions")
 
 
 class Subtitle:
@@ -173,7 +177,6 @@ def export_video(file_id, out_dir, gui_callback=None, video_name="video.mp4"):
         backend.log.export_end(file_id)
     except Exception as exc:
         backend.log.export_err(file_id, str(exc))
-        print(logger)
         logger.log({"error": True, "error_msg": str(exc)})
         raise exc
 
@@ -288,10 +291,10 @@ def export_video_wrapped(file_id, out_dir, video_name, logger=None):
             )
             subtitles += part_subtitles
             for c in scene_clips:
-                if isinstance(c, ImageClip) or isinstance(c, CompositeVideoClip):
-                    clips.append(c)
-                elif isinstance(c, AudioFileClip):
+                if isinstance(c, AudioFileClip):
                     audios.append(c)
+                else:
+                    clips.append(c)
 
         gc.collect()
 
@@ -368,22 +371,45 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
     if complete_video_t is None:
         complete_video_t = t
 
+    has_caption = False
+    for part in scene["script"]:
+        if "written" in part:
+            has_caption = True
+            break
+
     clips = []
+    captions = []
+    reactions = []
     audios = []
     subtitles = []
 
-    img_path = scene["image_path"]
-    img_w, img_h = PIL.Image.open(img_path).size
-    if img_w/img_h <= 16/9:
-        new_h = VIDEO_SIZE[1]*0.9
-        new_w = new_h * img_w / img_h
-        img_raw = ImageClip(img_path). \
-            resize(height=new_h)
+    media_path = scene["media_path"]
+    if media_path[-4:] in [".png", "jpeg", ".jpg", ".gif"]:
+        media_w, media_h = PIL.Image.open(media_path).size
+        if media_w/media_h <= 16/9:
+            new_h = VIDEO_SIZE[1]*0.9
+            new_w = new_h * media_w / media_h
+            media_raw = ImageClip(media_path). \
+                resize(height=new_h)
+        else:
+            new_w = VIDEO_SIZE[0]*0.9
+            new_h = new_w * media_h / media_w
+            media_raw = ImageClip(media_path). \
+                resize(width=new_w)
+    elif media_path[-4:] in [".mp4"]:
+        media_raw = VideoFileClip(media_path)
+        media_w = media_raw.w
+        media_h = media_raw.h
+        if media_w/media_h <= 16/9:
+            new_h = VIDEO_SIZE[1]*0.9
+            new_w = new_h * media_w / media_h
+            media_raw = media_raw.resize(height=new_h)
+        else:
+            new_w = VIDEO_SIZE[0]*0.9
+            new_h = new_w * media_h / media_w
+            media_raw = media_raw.resize(width=new_w)
     else:
-        new_w = VIDEO_SIZE[0]*0.9
-        new_h = new_w * img_h / img_w
-        img_raw = ImageClip(img_path). \
-            resize(width=new_w)
+        return [[], [], 0]
 
     for i in range(len(scene["script"])):
         part = scene["script"][i]
@@ -404,30 +430,22 @@ def get_scene_clips(t, scene, cache_dir, is_last=False, complete_video_t=None):
             wait_length += part_audio.duration
 
         if "crop" in part:
-            crop = part["crop"]
-            x = int(new_w*crop["x"]/100)
-            y = int(new_h*crop["y"]/100)
-            w = int(new_w*crop["w"]/100)
-            h = int(new_h*crop["h"]/100)
-            part_image = img_raw.crop(x1=x, y1=y, width=w, height=h)
-            if is_last:
-                part_image = CompositeVideoClip([part_image])
-            part_image = part_image. \
-                set_position((
-                    (VIDEO_SIZE[0] - new_w) / 2 + x,
-                    (VIDEO_SIZE[1] - new_h) / 2 + y
-                )). \
-                set_start(t)
-            clips.append(part_image)
+            media_clip = get_media_clips(t, media_raw, part["crop"], is_last=is_last, has_caption=has_caption)
+            clips.append(media_clip)
+
+            if isinstance(media_raw, VideoFileClip):
+                wait_length += media_raw.duration
 
         if "reaction" in part:
-            pass
+            # Reactions can currently be "think", "joy", "shrug", and "smug"
+            reactions.append(get_reaction_clip(t, part['reaction']))
 
-        if "text" in part:
-            pass
+        if "written" in part:
+            captions += get_caption_clips(t, part["written"])
 
         t = wait_length
 
+    clips += captions + reactions
     if is_last:
         clips = [c.set_end(t+VIDEO_FADE_TIME).fadeout(VIDEO_FADE_TIME) for c in clips]
         t += VIDEO_FADE_TIME
@@ -480,3 +498,66 @@ def download_audios_for(s, cache_dir, document=None):
                     raise Exception(f"Could not download audio {scene['number']:05d}-{i:05d}")
                 faud.write(audio)
                 faud.close()
+
+
+def get_media_clips(media, t, crop_data, is_last=False, has_caption=False):
+    x = int(media.w*crop_data["x"]/100)
+    y = int(media.h*crop_data["y"]/100)
+    w = int(media.w*crop_data["w"]/100)
+    h = int(media.h*crop_data["h"]/100)
+
+    part_media = media.crop(x1=x, y1=y, width=w, height=h)
+    if is_last:
+        part_media = CompositeVideoClip([part_media])
+
+    align_y = (VIDEO_SIZE[1] - media.h) / 2 + y
+    if has_caption:
+        align_y = 0
+
+    part_media = part_media. \
+        set_position((
+            (VIDEO_SIZE[0] - media.w) / 2 + x,
+            align_y
+        )). \
+        set_start(t)
+    return part_media
+
+
+def get_caption_clips(t, text):
+    margin_height = 10
+    part_text = TextClip(text, font="Roboto", fontsize=45,
+                         color=CAPTION_TEXT_COLOR, align="center", method="caption",
+                         size=(int(VIDEO_SIZE[0]*0.9), None))
+    part_text = part_text \
+        .set_position((
+            (VIDEO_SIZE[0] - part_text.w) / 2,
+            VIDEO_SIZE[1] - part_text.h - margin_height
+        )) \
+        .set_start(t)
+    backdrop_height = part_text.h + margin_height*2
+    part_background = create_rectangle(VIDEO_SIZE[0], backdrop_height, color=CAPTION_BG_COLOR) \
+        .set_position((0, VIDEO_SIZE[1] - backdrop_height)) \
+        .set_start(t)
+    return [part_background, part_text]
+
+
+def get_reaction_clip(t, reaction):
+    reaction_path = os.path.join(REACTIONS_PATH, f"{reaction}.png")
+    part_react = ImageClip(reaction_path).resize(height=int(0.5*VIDEO_SIZE[1]))
+    part_react = part_react \
+        .set_position((
+            VIDEO_SIZE[0] - part_react.w,
+            VIDEO_SIZE[1] - part_react.h
+        )) \
+        .set_start(t)
+    return part_react
+
+
+def create_rectangle(width, height, color=(33, 33, 33)):
+    color = tuple([c/255 for c in color])
+
+    def make_frame(_t):
+        surface = gizeh.Surface(width, height, bg_color=color)
+        return surface.get_npimage()
+
+    return VideoClip(make_frame)
