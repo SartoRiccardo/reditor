@@ -85,7 +85,7 @@ class Uploader(threading.Thread):
             if os.path.exists(to_upload['path']):
                 os.remove(f"{to_upload['path']}/thumbnail.png")
                 os.remove(f"{to_upload['path']}/subtitles.srt")
-                os.remove(f"{to_upload['path']}/{to_upload['id']}.mp4")
+                os.remove(video_path)
                 os.rmdir(to_upload['path'])
         except UploadDetailException as exc:
             url = f"https://www.youtube.com/watch?v={exc.uploaded_id}"
