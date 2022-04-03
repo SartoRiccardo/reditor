@@ -46,7 +46,7 @@ SIZES = {
 VIDEO_SIZE = SIZES[720]
 SOUNDTRACK_FADE_TIME = 1
 VIDEO_FADE_TIME = 1
-FPS = 1#25
+FPS = 25
 BR = "\n"
 REACTIONS_PATH = os.path.join("assets", "reactions")
 
