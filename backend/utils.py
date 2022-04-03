@@ -1,6 +1,10 @@
 from random import randint
 import re
 import backend
+from mutagen.mp3 import MP3
+from moviepy.video.io.VideoFileClip import VideoFileClip
+from PIL import Image
+import os
 
 
 def randstr(length):
@@ -34,29 +38,37 @@ def replace_with_group(match):
     return match.group(1)
 
 
+def repl_markdown(mark):
+    def ret(match):
+        if mark == "bi":
+            return f"<b><i>{match.group(1)}</i></b>"
+        if mark == "b":
+            return f"<b>{match.group(1)}</b>"
+        if mark == "i":
+            return f"<i>{match.group(1)}</i>"
+        return match.group(1)
+    return ret
+
+
+__POLISH_COMMENTS_REPL = [
+    ("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\""),
+    ("\\[(.+?)\\]\\(.+?\\)", replace_with_group), ("\\. \\. \\.", "..."),
+    (r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))",
+     "[some URL]"),
+    ("\\*\\*\\*(.*?)\\*\\*\\*", repl_markdown("bi")), ("___(.*?)___", repl_markdown("bi")),
+    ("\\*\\*(.*?)\\*\\*", repl_markdown("b")), ("__(.*?)__", repl_markdown("b")),
+    ("\\*(.*?)\\*", repl_markdown("i")), ("_(.*?)_", repl_markdown("i")), ("\r", "\n"),
+]
+
+
+def polish_comment(comment):
+    for pre, after in __POLISH_COMMENTS_REPL:
+        comment = re.sub(pre, after, comment)
+    return comment
+
+
 def polish_comments(forest):
-
-    def repl_markdown(mark):
-        def ret(match):
-            if mark == "bi":
-                return f"<b><i>{match.group(1)}</i></b>"
-            if mark == "b":
-                return f"<b>{match.group(1)}</b>"
-            if mark == "i":
-                return f"<i>{match.group(1)}</i>"
-            return match.group(1)
-        return ret
-
-    replacements = [
-        ("\\.\\s+\"", ".\""), ("!\\s+\"", ".\""), ("\\?\\s+\"", ".\""),
-        ("\\[(.+?)\\]\\(.+?\\)", replace_with_group), ("\\. \\. \\.", "..."),
-        (r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))",
-         "[some URL]"),
-        ("\\*\\*\\*(.*?)\\*\\*\\*", repl_markdown("bi")), ("___(.*?)___", repl_markdown("bi")),
-        ("\\*\\*(.*?)\\*\\*", repl_markdown("b")), ("__(.*?)__", repl_markdown("b")),
-        ("\\*(.*?)\\*", repl_markdown("i")), ("_(.*?)_", repl_markdown("i")), ("\r", "\n"),
-    ]
-    for pre, after in replacements:
+    for pre, after in __POLISH_COMMENTS_REPL:
         forest["body"] = re.sub(pre, after, forest["body"])
     for i in range(len(forest["replies"])):
         forest["replies"][i] = polish_comments(forest["replies"][i])
@@ -121,3 +133,44 @@ def parse_script(file):
             temp_parts = []
             skip_next_line = True
     return ret
+
+
+def get_extension(path):
+    regex = r"\.([^\.]*)$"
+    return re.findall(regex, path)[0]
+
+
+def get_audio_length(path):
+    if os.path.exists(path):
+        audio = MP3(path)
+        length = audio.info.length
+        return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
+    return {"m": 0, "s": 0, "ms": 0, "total": 0}
+
+
+def get_video_length(path):
+    if os.path.exists(path):
+        vid = VideoFileClip(path)
+        length = vid.duration
+        vid.close()
+        return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
+    return {"m": 0, "s": 0, "ms": 0, "total": 0}
+
+
+# https://www.codespeedy.com/find-the-duration-of-gif-image-in-python
+def get_gif_length(path):
+    if os.path.exists(path):
+        img_obj = Image.open(path)
+        img_obj.seek(0)  # move to the start of the gif, frame 0
+        tot_duration = 0
+        # run a while loop to loop through the frames
+        while True:
+            try:
+                frame_duration = img_obj.info['duration']  # returns current frame duration in milli sec.
+                tot_duration += frame_duration
+                # now move to the next frame of the gif
+                img_obj.seek(img_obj.tell() + 1)  # image.tell() = current frame
+            except EOFError:
+                length = tot_duration / 1000
+                return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
+

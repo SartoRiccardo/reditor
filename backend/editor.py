@@ -2,7 +2,6 @@ import os
 import csv
 import shutil
 import base64
-from mutagen.mp3 import MP3
 import urllib3
 import backend.requests
 import backend.utils
@@ -12,8 +11,7 @@ import traceback
 from PIL import Image
 import pytesseract
 import re
-from html2image import Html2Image
-from random import randint
+from random import randint, choice
 pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
 
@@ -52,25 +50,42 @@ class ScenePart:
     @staticmethod
     def part_to_object(lines):
         lines = lines.split("\n")
-        coords = lines[0].split(";")
         wait = float(lines[3]) if backend.utils.is_number(lines[3]) else 1
         ob = {
-            "crop": {
-                "x": float(coords[0]),
-                "y": float(coords[1]),
-                "w": float(coords[2]),
-                "h": float(coords[3]),
-            },
             "text": lines[1],
             "voice": lines[2],
             "wait": wait,
         }
+        if lines[0].startswith("["):
+            regex = r"\[(\S+?)=([^]]+?)]"
+            match = re.findall(regex, lines[0])
+            for field_name, field_value in match:
+                ob[field_name] = field_value
+        else:
+            coords = lines[0].split(";")
+            ob["crop"] = {
+                "x": float(coords[0]),
+                "y": float(coords[1]),
+                "w": float(coords[2]),
+                "h": float(coords[3]),
+            }
         return ob
 
     @staticmethod
-    def object_to_text(scene):
+    def object_to_text(scene: dict):
+        standard_keys = ["crop", "text", "voice", "wait"]
+        fields = []
+        for key in scene.keys():
+            if key not in standard_keys:
+                fields.append(f"[{key}={scene[key]}]")
+
+        if len(fields) == 0:
+            first_line = f"{scene['crop']['x']};{scene['crop']['y']};{scene['crop']['w']};{scene['crop']['h']}"
+        else:
+            first_line = "".join(fields)
+
         return (
-            f"{scene['crop']['x']};{scene['crop']['y']};{scene['crop']['w']};{scene['crop']['h']}" + "\n" +
+            first_line + "\n" +
             scene["text"] + "\n" +
             scene["voice"] + "\n" +
             str(scene["wait"])
@@ -159,14 +174,6 @@ def write_config(project_id, variable, newval):
     config.close()
 
 
-def get_audio_length(path):
-    if os.path.exists(path):
-        audio = MP3(path)
-        length = audio.info.length
-        return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
-    return {"m": 0, "s": 0, "ms": 0, "total": 0}
-
-
 def get_cache_dir(file_id=open_file_id):
     ret = get_project_dir(file_id) + "/cache"
     if not os.path.exists(ret):
@@ -184,6 +191,7 @@ def get_scene_duration(scene, file=None):
     if file is None:
         file = open_file_id
 
+    scene_dir = None
     if isinstance(scene, dict):
         script = scene["script"]
     else:
@@ -194,12 +202,18 @@ def get_scene_duration(scene, file=None):
 
     cache_dir = get_cache_dir(file)
     duration = 0
+    if scene_dir:
+        if os.path.exists(scene_dir+"/media.mp4"):
+            duration += backend.utils.get_video_length(scene_dir+"/media.mp4")["total"]
+        elif os.path.exists(scene_dir+"/media.gif"):
+            duration += backend.utils.get_gif_length(scene_dir+"/media.gif")["total"]
+
     for i in range(len(script)):
         part = script[i]
         if part["text"]:
             aud_path = cache_dir + f"/{scene:05d}-{i:05d}.mp3"
             if os.path.exists(aud_path):
-                duration += get_audio_length(aud_path)["total"]
+                duration += backend.utils.get_audio_length(aud_path)["total"]
             else:
                 duration = None
                 break
@@ -209,6 +223,13 @@ def get_scene_duration(scene, file=None):
 
 
 def make_automatic_video(document_name, image_urls, options):
+    """
+    Creates a video automatically with the given arguments
+    :param document_name: str: the name of the document to create.
+    :param image_urls: List<ImageLink>: a collection of images.
+    :param options.maxDuration: int: the max duration of the video, in seconds.
+    :param options.bgmDir: str: a path to a folder that contains MP3 files and/or subfolders containing the former.
+    """
     file = create_file(document_name)
     for i in range(len(image_urls)):
         path = image_urls[i].path
@@ -219,69 +240,37 @@ def make_automatic_video(document_name, image_urls, options):
             shutil.move(path+".txt", scene_dir+"/script.txt")
 
     load_video_duration(document=file["id"])
-    file_info = get_file_info(file["id"])
-
-    duration = 0
-    total_duration = 0
-    max_duration = 4 * 60
-    max_file_duration = options["maxDuration"] if "maxDuration" in options else 11*60
-    soundtrack_dir = options["bgmDir"]
-    soundtracks = []
-    for root, _, files in os.walk(soundtrack_dir):
-        for f in files:
-            if f.endswith(".mp3"):
-                soundtracks.append(os.path.join(root, f))
-
-    i = randint(0, len(soundtracks)-1)
-    soundtrack_number = 1
-    script_len = 1
-    chosen_soundtrack = soundtracks.pop(i)
-    soundtrack_len = get_audio_length(chosen_soundtrack)["total"]
-    song_name = chosen_soundtrack.split("/")[-1][:-4]
-    set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True, document=file["id"])
-    new_song_ids = []
-    for i in range(len(file_info["script"])):
-        s = file_info["script"][i]
-        if s["type"] == "scene":
-            s_len = s["duration"]
-            if total_duration+s_len > max_file_duration:
-                for _ in range(len(file_info["script"])-i):
-                    delete_scene(i+1, document=file["id"])
-                break
-
-            if duration+s_len >= max_duration or duration+s_len >= soundtrack_len-10:
-                add_to_script("transition", document=file["id"])
-                add_to_script("soundtrack", document=file["id"])
-                soundtrack_number += 1
-                rand_i = randint(0, len(soundtracks)-1)
-                chosen_soundtrack = soundtracks.pop(rand_i)
-                soundtrack_len = get_audio_length(chosen_soundtrack)["total"]
-                song_name = chosen_soundtrack.split("/")[-1][:-4]
-                set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True, document=file["id"])
-                duration = 0
-                new_song_ids.append(i)
-
-                prev_scene = file_info["script"][i-1]
-                prev_part = get_scene_info(prev_scene["number"], file=file["id"])["script"]
-                prev_i = len(prev_part) - 1
-                prev_part = prev_part[-1]
-                prev_part["wait"] = 4
-                change_scene_info(prev_scene["number"], prev_i, prev_part, document=file["id"])
-
-            duration += s_len
-            total_duration += s_len
-            script_len += 1
-
-    script_len += len(new_song_ids)*2
-    for i in range(len(new_song_ids)):
-        new_song_i = new_song_ids[i]+i*2 + 1
-        song_to_relocate = script_len - (len(new_song_ids)-i)*2 + 2
-        relocate_scene(song_to_relocate, new_song_i, document=file["id"])
-        relocate_scene(song_to_relocate, new_song_i, document=file["id"])
+    add_soundtracks_and_truncate(file["id"], options)
 
 
 # REQUEST HANDLERS
 def get_file_info(id):
+    """
+    Returns info about the file with given ID.
+    :param id: int: the ID of the file to analyze.
+    :return: dict: The file data, as following:
+        {
+            "path": str: Absolute path to the file document
+            "scenes": int: No. of scenes
+            "components": int: No. of components
+            "script": List<Union[transition, soundtrack, scene]>
+        }
+
+        All components of "script" have a `type` field that describes what they are.
+        Soundtracks are defined as following:
+        {
+            "name": str: the file name of the soundtrack.
+            "duration": dict: the duration, can be extracted with keys `m`, `s`, `ms`, and `total`.
+            "path": str: the full path of the file.
+            "number": int: the internal ID of the soundtrack in the file.
+        }
+
+        Scenes are defined as the following:
+        {
+            "duration": int: the duration, in seconds, of the scene.
+            "number": int: the internal ID of the scene in the file.
+        }
+    """
     finfo = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo, delimiter=";", quotechar="\"")
 
@@ -316,7 +305,7 @@ def get_file_info(id):
                 script.append({
                     "type": "soundtrack",
                     "name": ";".join(parts[2:]),
-                    "duration": get_audio_length(audio_path),
+                    "duration": backend.utils.get_audio_length(audio_path),
                     "path": audio_path,
                     "number": soundtrack_id,
                 })
@@ -345,6 +334,15 @@ def get_file_info(id):
 
 
 def get_files():
+    """
+    Gets a list of the available files.
+    :return: List<file>: A list of files.
+        Files being defined as following:
+        {
+            "id": int: The internal ID of the file.
+            "name": str: The name of the file.
+        }
+    """
     finfo = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo, delimiter=";", quotechar="\"")
 
@@ -359,6 +357,15 @@ def get_files():
 
 
 def create_file(name):
+    """
+    Creates a file and returns it.
+    :return: file: The newly created file.
+        Files being defined as following:
+        {
+            "id": int: The internal ID of the file.
+            "name": str: The name of the file.
+        }
+    """
     finfo_r = open(p("/saves/index.csv"), "r")
     reader = csv.reader(finfo_r, delimiter=";", quotechar="\"")
 
@@ -484,6 +491,9 @@ def change_scene_info(scene, script_index, new_script, document=None):
     fscene = open(get_scene_dir(document, scene)+"/script.txt")
 
     parts = backend.utils.parse_script(fscene)
+    for i in range(len(parts)):
+        p = parts[i]
+        ScenePart.object_to_text(p)
     fscene.close()
 
     if len(parts) > script_index >= 0:
@@ -512,22 +522,28 @@ def get_scene_info(scene, file=None):
 
     duration = get_scene_duration(scene, file)
 
-    image = None
-    img_path = scene_dir+"/image.png"
-    if os.path.exists(scene_dir+"/image.png"):
-        imagebin = open(scene_dir+"/image.png", "rb")
-        image = "data:image/png;base64," + base64.b64encode(imagebin.read()).decode()
+    media = None
+    media_path = scene_dir+"/media.png"
+    if os.path.exists(scene_dir+"/media.png"):
+        imagebin = open(scene_dir+"/media.png", "rb")
+        media = "data:image/png;base64," + base64.b64encode(imagebin.read()).decode()
         imagebin.close()
-    elif os.path.exists(scene_dir+"/image.jpg"):
-        imagebin = open(scene_dir+"/image.jpg", "rb")
-        img_path = scene_dir+"/image.jpg"
-        image = "data:image/jpeg;base64," + base64.b64encode(imagebin.read()).decode()
+    elif os.path.exists(scene_dir+"/media.jpeg"):
+        imagebin = open(scene_dir+"/media.jpeg", "rb")
+        media_path = scene_dir+"/media.jpeg"
+        media = "data:image/jpeg;base64," + base64.b64encode(imagebin.read()).decode()
         imagebin.close()
+    elif os.path.exists(scene_dir+"/media.mp4"):
+        media_path = scene_dir+"/media.mp4"
+        media = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+    elif os.path.exists(scene_dir+"/media.gif"):
+        media_path = scene_dir+"/media.gif"
+        media = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
 
     return {
         "number": scene,
-        "image": image,
-        "image_path": img_path,
+        "image": media,
+        "media_path": media_path,
         "script": script,
         "last_change": os.path.getmtime(scene_dir+"/script.txt"),
         "duration": duration
@@ -664,14 +680,14 @@ def set_song(number, name, song_b64, is_path=False, document=None):
 
     return {
         "type": "soundtrack",
-        "duration": get_audio_length(song_path),
+        "duration": backend.utils.get_audio_length(song_path),
         "name": name,
         "path": song_path,
         "number": number,
     }
 
 
-def export_file(document=None, log_callback=print):
+def export_file(document=None, log_callback=None):
     if document is None:
         document = open_file_id
     files = get_files()
@@ -689,6 +705,8 @@ def export_file(document=None, log_callback=print):
         shutil.rmtree(export_dir)
     os.mkdir(export_dir)
     try:
+        if log_callback is None:
+            log_callback = lambda x: x
         backend.video.export_video(document, export_dir,
                                    gui_callback=log_callback,
                                    video_name=file_name+".mp4"
@@ -705,6 +723,14 @@ def export_multiple(files):
 
 
 def download_images(platform, target, options={}):
+    """
+    Downloads images from a platform. Will generate a video automatically if some
+    conditions are met.
+    :param platform: Union["reddit", "twitter", "askreddit", "reddit-media"]
+    :param target: str: The username or subreddit to target.
+    :param options.isSelfpostVideo: bool: Whether the video is only made of reddit text posts.
+    :param options.bgmDir: str: The directory containing MP3 files or subfolders with MP3 files.
+    """
     image_urls = []
     if platform == "reddit":
         image_urls = backend.requests.subreddit_image_posts(target, only_selfposts=options["isSelfpostVideo"])
@@ -716,7 +742,7 @@ def download_images(platform, target, options={}):
             target = re.search(id_re, target).group(1)
         image_urls = backend.requests.post_comments(target)
 
-    if len(image_urls) == 0:
+    if len(image_urls) == 0 and platform != "reddit-media":
         return False
 
     tmp_dir = DATA_PATH + "/tmp"
@@ -728,8 +754,9 @@ def download_images(platform, target, options={}):
     os.mkdir(dl_dir)
 
     automatic = (platform == "reddit" and options["isSelfpostVideo"]
-                 or platform == "askreddit") \
-                 and options["bgmDir"]
+                 or platform == "askreddit"
+                 or platform == "reddit-media") \
+                and options["bgmDir"]
 
     if not automatic:
         for i in range(len(image_urls)):
@@ -745,9 +772,187 @@ def download_images(platform, target, options={}):
         shutil.move(zip_path, DOWNLOAD_PATH+f"/{target}-{int(time.time())}.zip")
     else:
         document_name = f"{target}"
-        make_automatic_video(document_name, image_urls, options)
+        if platform == "reddit-media":
+            media_posts = backend.requests.media_submissions(target)
+            make_automatic_media_video(document_name, media_posts, options)
+        else:
+            make_automatic_video(document_name, image_urls, options)
 
     return True
+
+
+def make_automatic_media_video(document_name, media_posts, options):
+    """
+    Creates a video made of media automatically with the given arguments
+    :param document_name: str: the name of the document to create.
+    :param image_urls: List<MediaPost>: a list of MediaPosts.
+    :param options.maxDuration: int: the max duration of the video, in seconds.
+    :param options.bgmDir: str: a path to a folder that contains MP3 files and/or subfolders containing the former.
+    """
+    file = create_file(document_name)
+    tmp_path = DATA_PATH + "/tmp/"
+    reactions = ["think", "joy", "shrug", "smug"]
+
+    sorted_scenes = []
+    for i in range(len(media_posts)):
+        media_posts[i].path = backend.requests.download_resource(media_posts[i].url, tmp_path+"media", True)
+        if not media_posts[i].path:
+            continue
+
+        media_ext = backend.utils.get_extension(media_posts[i].path)
+        scene = add_to_script("scene", document=file["id"])
+
+        # Detect scene media duration.
+        if media_ext == "mp4":
+            media_duration = backend.utils.get_video_length(media_posts[i].path)["total"]
+        elif media_ext == "gif":
+            media_duration = backend.utils.get_gif_length(media_posts[i].path)["total"]
+        else:
+            media_duration = 0
+
+        # Sort the scene (ASC) based on its media duration
+        # (only keeping track. Real sorting happens later).
+        duration_obj = {"scene_number": scene[0]["number"], "t": media_duration}
+        for j in range(len(sorted_scenes)):
+            sort_sc = sorted_scenes[j]
+            if j == len(sorted_scenes)-1 and sort_sc["t"] <= media_duration:
+                sorted_scenes.append(duration_obj)
+                break
+            elif j == 0 and sort_sc["t"] > media_duration or \
+                    sorted_scenes[j - 1]["t"] <= media_duration < sort_sc["t"]:
+                sorted_scenes.insert(j, duration_obj)
+                break
+
+        if len(sorted_scenes) == 0:
+            sorted_scenes.append(duration_obj)
+
+        # Create the script for the scene and write it
+        voice = backend.image.get_voice_for_scene()
+        script = [
+            {
+                "written": media_posts[i].title,
+                "text": media_posts[i].title,
+                "voice": voice,
+                "wait": 1.0,
+            },
+            {
+                "crop": {"x": 0, "y": 0, "w": 100, "h": 100},
+                "text": "",
+                "voice": voice,
+                "wait": 0 if media_ext in ["mp4", "gif"] else 5,
+            },
+        ]
+        if media_posts[i].comment:
+            voice = backend.image.get_voice_for_scene()
+            script.append({
+                "reaction": choice(reactions),
+                "text": media_posts[i].comment,
+                "voice": voice,
+                "wait": 1.0,
+            })
+        fscript = open(media_posts[i].path+".txt", "w")
+        fscript.write("\n\n".join(
+            [ScenePart.object_to_text(sc) for sc in script]
+        ))
+        fscript.close()
+
+        scene_dir = get_scene_dir(file["id"], scene[0]["number"])
+        shutil.move(media_posts[i].path, scene_dir + f"/media.{media_ext}")
+        shutil.move(media_posts[i].path+".txt", scene_dir+"/script.txt")
+
+    # Reorder scenes, now sorted
+    for i in range(len(sorted_scenes)):
+        scene_dir_from = get_scene_dir(file["id"], sorted_scenes[i]["scene_number"])
+        scene_dir_to = get_scene_dir(file["id"], i+1)
+        shutil.move(scene_dir_from, scene_dir_to+"-sorting")
+    for i in range(len(sorted_scenes)):
+        scene_dir = get_scene_dir(file["id"], i+1)
+        shutil.move(scene_dir+"-sorting", scene_dir)
+
+    add_soundtracks_and_truncate(file, options)
+
+
+def add_soundtracks_and_truncate(file, options):
+    """
+    Adds soundtracks to a file and cuts scenes if the length would make it overflow.
+    :param file: file: A project file.
+    :param options.maxDuration: int: the max duration of the video, in seconds.
+    :param options.bgmDir: str: a path to a folder that contains MP3 files and/or subfolders containing the former.
+        Files being defined as following:
+        {
+            "id": int: The internal ID of the file.
+            "name": str: The name of the file.
+        }
+    """
+    max_file_duration = options["maxDuration"] if "maxDuration" in options else 11*60
+
+    load_video_duration(document=file["id"])
+    file_info = get_file_info(file["id"])
+
+    # Fetches all possible soundtracks
+    duration = 0
+    total_duration = 0
+    max_duration = 4 * 60
+    soundtrack_dir = options["bgmDir"]
+    soundtracks = []
+    for root, _, files in os.walk(soundtrack_dir):
+        for f in files:
+            if f.endswith(".mp3"):
+                soundtracks.append(os.path.join(root, f))
+
+    i = randint(0, len(soundtracks)-1)
+    soundtrack_number = 1
+    script_len = 1
+    chosen_soundtrack = soundtracks.pop(i)
+    soundtrack_len = backend.utils.get_audio_length(chosen_soundtrack)["total"]
+    song_name = chosen_soundtrack.split("/")[-1][:-4]
+    set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True, document=file["id"])
+    new_song_ids = []
+    for i in range(len(file_info["script"])):
+        s = file_info["script"][i]
+        if s["type"] != "scene":
+            continue
+
+        s_len = s["duration"]
+        # Deletes every scene that would make the video too long
+        if total_duration+s_len > max_file_duration:
+            for _ in range(len(file_info["script"])-i):
+                delete_scene(i+1, document=file["id"])
+            break
+
+        # If the current segment of scenes exceedes the max segment length,
+        # add a transition and a soundtrack immediately after the previously analyzed
+        # scene.
+        if duration+s_len >= max_duration or duration+s_len >= soundtrack_len-10:
+            add_to_script("transition", document=file["id"])
+            add_to_script("soundtrack", document=file["id"])
+            soundtrack_number += 1
+            rand_i = randint(0, len(soundtracks)-1)
+            chosen_soundtrack = soundtracks.pop(rand_i)
+            soundtrack_len = backend.utils.get_audio_length(chosen_soundtrack)["total"]
+            song_name = chosen_soundtrack.split("/")[-1][:-4]
+            set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True, document=file["id"])
+            duration = 0
+            new_song_ids.append(i) # Keep track of the index the song is supposed to be in
+
+            prev_scene = file_info["script"][i-1]
+            prev_part = get_scene_info(prev_scene["number"], file=file["id"])["script"]
+            prev_i = len(prev_part) - 1
+            prev_part = prev_part[-1]
+            prev_part["wait"] = 4
+            change_scene_info(prev_scene["number"], prev_i, prev_part, document=file["id"])
+
+        duration += s_len
+        total_duration += s_len
+        script_len += 1
+
+    script_len += len(new_song_ids)*2  # Each added item is a song + a transition
+    # Puts songs in the correct places
+    for i in range(len(new_song_ids)):
+        new_song_i = new_song_ids[i]+i*2 + 1
+        song_to_relocate = script_len - (len(new_song_ids)-i)*2 + 2
+        relocate_scene(song_to_relocate, new_song_i, document=file["id"])
+        relocate_scene(song_to_relocate, new_song_i, document=file["id"])
 
 
 def load_video_duration(document=None, max_time=-1, max_chars=-1):
@@ -765,11 +970,11 @@ def load_video_duration(document=None, max_time=-1, max_chars=-1):
     total_duration = 0
     try:
         for s in file_info["script"]:
+            if total_duration >= max_time > 0:
+                break
             if s["type"] == "scene":
                 backend.video.download_audios_for(s, get_cache_dir(document), document=document)
                 total_duration += get_scene_duration(s["number"], document)
-            if max_time > 0 and total_duration >= max_time:
-                break
     except Exception as exc:
         print("\n"*2, exc, "\n"*2)
         return None
@@ -777,7 +982,14 @@ def load_video_duration(document=None, max_time=-1, max_chars=-1):
     return total_duration
 
 
-def detect_text(scene, crop, document=None):
+def detect_text(scene, crop, document=None, substitute=True):
+    """
+    Detects text in an image thanks to tesseract, prettifies it, and returns it,
+    :param scene: Union[int, dict]: The internal ID of the scene to analize.
+    :param crop: dict: Crops the image to only focus on the text. Params are `x`, `y`, `w`, and `h`.
+    :param document: int: The internal ID of the document the scene belongs to.
+    :return: str: The detected text.
+    """
     if document is None:
         document = open_file_id
 
@@ -797,26 +1009,11 @@ def detect_text(scene, crop, document=None):
         (" +", " "), ("(?:\*|”|\"|“|—|>|~)", ""), (":", "."), ("\|", "I"),
         ("qt", "cutie"), ("3\.14", "pie"), ("mfw", "my face when"), ("tfw", "that feel when"),
         ("https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)", "this link")
-    ]
+    ] if substitute else []
     for pre, sub in substitutions:
         text = re.sub(pre, sub, text)
 
     return text.strip()
-
-
-def generate_thumbnail(thumb_text, thumb_source_type, thumb_source):
-    thumb_dl_dir = DOWNLOAD_PATH + f"/thumbnail-{int(time.time())}.png"
-    thumb_tmp_file = None
-    source_path = thumb_source
-    if thumb_source_type == "url":
-        thumb_tmp_file = DATA_PATH + "/tmp/" + backend.utils.randstr(10) + ".png"
-        backend.requests.download_image(thumb_source, thumb_tmp_file)
-        source_path = thumb_tmp_file
-
-    backend.image.make_thumbnail(thumb_text, source_path, thumb_dl_dir)
-
-    if thumb_tmp_file is not None:
-        os.remove(thumb_tmp_file)
 
 
 init()

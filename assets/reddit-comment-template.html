@@ -175,7 +175,7 @@
                 if(endY === startY) {
                     scene.push({
                        crop: [0, 0, (100*(endX+endCoords.width)/width).toFixed(2), (100*(realEndY+endCoords.height)/height).toFixed(2)],
-                       wait: 1,
+                       wait: 0.75,
                     });
                 }
                 else {
@@ -185,7 +185,7 @@
                     });
                     scene.push({
                        crop: [0, 0, (100*(endX+endCoords.width)/width).toFixed(2), (100*(realEndY+endCoords.height)/height).toFixed(2)],
-                       wait: 1,
+                       wait: 0.75,
                     });
                 }
             }
