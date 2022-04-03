@@ -37,8 +37,6 @@ from proglog import TqdmProgressBarLogger
 
 
 WHITE = (255, 255, 255)
-CAPTION_TEXT_COLOR = "gray13"  # (33, 33, 33)
-CAPTION_BG_COLOR = (236, 239, 241)
 SIZES = {
     720: (1280, 720),
     1080: (1920, 1080),
@@ -49,6 +47,11 @@ VIDEO_FADE_TIME = 1
 FPS = 25
 BR = "\n"
 REACTIONS_PATH = os.path.join("assets", "reactions")
+
+CAPTION_TEXT_COLOR = "gray13"  # (33, 33, 33)
+CAPTION_BG_COLOR = (236, 239, 241)
+CAPTION_MARGIN_Y = 10
+CAPTION_TEXT_SIZE = 42
 
 
 class Subtitle:
@@ -500,7 +503,7 @@ def download_audios_for(s, cache_dir, document=None):
                 faud.close()
 
 
-def get_media_clips(media, t, crop_data, is_last=False, has_caption=False):
+def get_media_clips(t, media, crop_data, is_last=False, has_caption=False):
     x = int(media.w*crop_data["x"]/100)
     y = int(media.h*crop_data["y"]/100)
     w = int(media.w*crop_data["w"]/100)
@@ -524,17 +527,16 @@ def get_media_clips(media, t, crop_data, is_last=False, has_caption=False):
 
 
 def get_caption_clips(t, text):
-    margin_height = 10
-    part_text = TextClip(text, font="Roboto", fontsize=45,
+    part_text = TextClip(text, font="Roboto", fontsize=CAPTION_TEXT_SIZE,
                          color=CAPTION_TEXT_COLOR, align="center", method="caption",
                          size=(int(VIDEO_SIZE[0]*0.9), None))
     part_text = part_text \
         .set_position((
             (VIDEO_SIZE[0] - part_text.w) / 2,
-            VIDEO_SIZE[1] - part_text.h - margin_height
+            VIDEO_SIZE[1] - part_text.h - CAPTION_MARGIN_Y
         )) \
         .set_start(t)
-    backdrop_height = part_text.h + margin_height*2
+    backdrop_height = part_text.h + CAPTION_MARGIN_Y*2
     part_background = create_rectangle(VIDEO_SIZE[0], backdrop_height, color=CAPTION_BG_COLOR) \
         .set_position((0, VIDEO_SIZE[1] - backdrop_height)) \
         .set_start(t)
