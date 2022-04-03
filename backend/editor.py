@@ -795,7 +795,6 @@ def make_automatic_media_video(document_name, media_posts, options):
 
     sorted_scenes = []
     for i in range(len(media_posts)):
-        print(f"{i+1}/{len(media_posts)}")
         media_posts[i].path = backend.requests.download_resource(media_posts[i].url, tmp_path+"media", True)
         if not media_posts[i].path:
             continue

@@ -43,7 +43,7 @@ VOICES = {
 MAX_RATIO = 3/2
 MIN_RATIO = 1/MAX_RATIO
 
-COMMENT_CHANCE = 1/4
+COMMENT_CHANCE = 0.45
 
 
 class ImageLink:
@@ -306,12 +306,13 @@ def media_submissions(sub, max_scenes=100000, max_comment_chars=80):
         submission_lists = [reddit.subreddit(sub).top("week"), reddit.subreddit(sub).hot()]
 
         ret = []
+        added_submissions = []
         for submissions in submission_lists:
             for s in submissions:
                 if len(ret) >= max_scenes:
                     break
 
-                if s.over_18 or s.stickied or not hasattr(s, "post_hint"):
+                if s.over_18 or s.stickied or not hasattr(s, "post_hint") or s.id in added_submissions:
                     continue
 
                 post = None
@@ -342,6 +343,7 @@ def media_submissions(sub, max_scenes=100000, max_comment_chars=80):
                         if "\n" not in comment and len(comment) <= max_comment_chars:
                             post.comment = comment
                     ret.append(post)
+                    added_submissions.append(s.id)
 
         return ret
 
