@@ -240,7 +240,7 @@ def make_automatic_video(document_name, image_urls, options):
             shutil.move(path+".txt", scene_dir+"/script.txt")
 
     load_video_duration(document=file["id"])
-    add_soundtracks_and_truncate(file["id"], options)
+    add_soundtracks_and_truncate(file, options)
 
 
 # REQUEST HANDLERS
