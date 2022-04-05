@@ -236,7 +236,7 @@ def make_automatic_video(document_name, image_urls, options):
         if os.path.exists(path+".txt"):
             scene = add_to_script("scene", document=file["id"])
             scene_dir = get_scene_dir(file["id"], scene[0]["number"])
-            shutil.move(path, scene_dir+"/image.png")
+            shutil.move(path, scene_dir+"/media.png")
             shutil.move(path+".txt", scene_dir+"/script.txt")
 
     load_video_duration(document=file["id"])
