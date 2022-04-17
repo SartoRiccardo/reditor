@@ -1,7 +1,6 @@
 from credentials import Reddit, Amazon, Twitter
 import json
 import urllib3
-import urllib.parse
 from random import random
 import os
 import re
@@ -11,6 +10,7 @@ import datetime
 import praw
 import twitter
 import backend.editor
+from classes import ImageLink, MediaPost, IntVar
 
 
 http = urllib3.PoolManager()
@@ -46,68 +46,7 @@ MIN_RATIO = 1/MAX_RATIO
 COMMENT_CHANCE = 0.45
 
 
-class ImageLink:
-    def __init__(self, path, is_url):
-        self.path = path
-        self.is_url = is_url
-
-
-class MediaPost:
-    def __init__(self, url, title, comment=None):
-        self.url = url
-        self.title = title
-        self.comment = comment
-        self.path = None
-
-    def __str__(self):
-        return f"<url={self.url} title='{self.title}' comment='{self.comment}'>"
-
-
-class IntVar:
-    def __init__(self, val=0):
-        self.val = val
-
-    def __add__(self, other):
-        return self.val + other
-
-    def __iadd__(self, other):
-        self.val += other
-        return self
-
-    def __sub__(self, other):
-        return self.val - other
-
-    def __isub__(self, other):
-        self.val -= other
-        return self
-
-    def __gt__(self, other):
-        return self.val > other
-
-    def __ge__(self, other):
-        return self.val >= other
-
-    def __eq__(self, other):
-        return self.val == other
-
-    def __lt__(self, other):
-        return self.val < other
-
-    def __le__(self, other):
-        return self.val <= other
-
-    def __str__(self):
-        return str(self.val)
-
-
-def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
-    """
-    Fetches a subreddit's top submissions.
-    :param sub: str: The name of the subreddit.
-    :param only_selfposts: boolean: Whether to only get selfposts/comments.
-    :param max_scenes: int: Max number of posts to download.
-    :return: ImageLink[]: A list of URLs leading to the images.
-    """
+def get_reddit_instance():
     reddit = praw.Reddit(
         client_id=Reddit.client_id,
         client_secret=Reddit.client_secret,
@@ -124,6 +63,18 @@ def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
         short_url="https://redd.it"
     )
     reddit.read_only = True
+    return reddit
+
+
+def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
+    """
+    Fetches a subreddit's top submissions.
+    :param sub: str: The name of the subreddit.
+    :param only_selfposts: boolean: Whether to only get selfposts/comments.
+    :param max_scenes: int: Max number of posts to download.
+    :return: ImageLink[]: A list of URLs leading to the images.
+    """
+    reddit = get_reddit_instance()
 
     try:
         submission_lists = [reddit.subreddit(sub).top("week"), reddit.subreddit(sub).hot()]
@@ -161,22 +112,7 @@ def post_comments(thread_id):
     :param thread_id: str: The ID of the thread.
     :return: ImageLink[]: A list of URLs leading to the images.
     """
-    reddit = praw.Reddit(
-        client_id=Reddit.client_id,
-        client_secret=Reddit.client_secret,
-        user_agent=Reddit.user_agent,
-        check_for_updates="False",
-        comment_kind="t1",
-        message_kind="t4",
-        redditor_kind="t2",
-        submission_kind="t3",
-        subreddit_kind="t5",
-        trophy_kind="t6",
-        oauth_url="https://oauth.reddit.com",
-        reddit_url="https://www.reddit.com",
-        short_url="https://redd.it"
-    )
-    reddit.read_only = True
+    reddit = get_reddit_instance()
 
     try:
         ret = []
@@ -213,94 +149,71 @@ def get_simplified_comments(forest, max_comment_roots=35, max_comments_per_tree=
     ret = []
     comments = 0
     for comment in forest:
+        if isinstance(comment, praw.reddit.models.MoreComments) or \
+                comment.body == "[removed]":
+            continue
+
         if comments >= max_comment_roots:
             break
 
-        if not isinstance(comment, praw.reddit.models.MoreComments):
-            if comment.body == "[removed]":
-                continue
-
-            name = "[deleted]"
-            pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
-            if comment.author:
-                name = comment.author.name
-                if hasattr(comment.author, "icon_img"):
-                    pfp = comment.author.icon_img
-            ret.append({
-                "author": name,
-                "author_pfp": pfp,
-                "body": comment.body,
-                "score": comment.score,
-                "replies": get_simplified_nested_comments(
-                    comment.replies,
-                    max_comments_per_tree,
-                )
-            })
-
         comments += 1
+        simplified = simplify_comment(comment)
+        simplified["replies"] = get_simplified_nested_comments(
+            comment.replies,
+            max_comments_per_tree,
+        )
+        ret.append(simplified)
 
     return ret
 
 
-def get_simplified_nested_comments(forest, max_comments, current_comments=None, depth=1):
-    if current_comments is None:
-        current_comments = IntVar(1)
-
+def get_simplified_nested_comments(forest, max_comments, current_comments=IntVar(1)):
     ret = []
     for comment in forest:
+        if isinstance(comment, praw.reddit.models.MoreComments) or \
+                comment.body == "[removed]":
+            continue
+
         if current_comments >= max_comments:
             break
 
-        if not isinstance(comment, praw.reddit.models.MoreComments):
-            if comment.body == "[removed]":
-                continue
-
-            current_comments += 1
-            name = "[deleted]"
-            pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
-            if comment.author:
-                name = comment.author.name
-                if hasattr(comment.author, "icon_img"):
-                    pfp = comment.author.icon_img
-            ret.append({
-                "author": name,
-                "author_pfp": pfp,
-                "body": comment.body,
-                "score": comment.score,
-                "replies": get_simplified_nested_comments(
-                    comment.replies,
-                    max_comments,
-                    current_comments=current_comments,
-                    depth=depth+1
-                )
-            })
+        current_comments += 1
+        simplified = simplify_comment(comment)
+        simplified["replies"] = get_simplified_nested_comments(
+            comment.replies,
+            max_comments,
+            current_comments=current_comments
+        )
+        ret.append(simplified)
 
     return ret
 
 
-def media_submissions(sub, max_scenes=100000, max_comment_chars=80):
+def simplify_comment(comment):
+    name = "[deleted]"
+    pfp = "https://upload.wikimedia.org/wikipedia/commons/c/c4/600_px_Transparent_flag.png"
+    if comment.author:
+        name = comment.author.name
+        if hasattr(comment.author, "icon_img"):
+            pfp = comment.author.icon_img
+    return {
+        "author": name,
+        "author_pfp": pfp,
+        "body": comment.body,
+        "score": comment.score,
+        "replies": []
+    }
+
+
+def media_submissions(sub: str, max_scenes=100000, comment_chars=range(30, 80)):
     """
     Fetches a subreddit's top submissions.
-    :param sub: str: The name of the subreddit.
-    :param max_scenes: int: Max number of posts to download.
+    :param sub: The name of the subreddit.
+    :param max_scenes: Max number of posts to download.
+    :param comment_chars: The range of character that the comments can have.
     :return: ImageLink[]: A list of URLs leading to the images.
     """
-    reddit = praw.Reddit(
-        client_id=Reddit.client_id,
-        client_secret=Reddit.client_secret,
-        user_agent=Reddit.user_agent,
-        check_for_updates="False",
-        comment_kind="t1",
-        message_kind="t4",
-        redditor_kind="t2",
-        submission_kind="t3",
-        subreddit_kind="t5",
-        trophy_kind="t6",
-        oauth_url="https://oauth.reddit.com",
-        reddit_url="https://www.reddit.com",
-        short_url="https://redd.it"
-    )
-    reddit.read_only = True
+    reddit = get_reddit_instance()
 
     try:
         submission_lists = [reddit.subreddit(sub).top("week"), reddit.subreddit(sub).hot()]
@@ -339,8 +252,9 @@ def media_submissions(sub, max_scenes=100000, max_comment_chars=80):
 
                 if post:
                     if random() < COMMENT_CHANCE:
-                        comment = backend.utils.polish_comment(load_first_comment(s.id, reddit))
-                        if "\n" not in comment and len(comment) <= max_comment_chars:
+                        comment = load_first_comment(s.id, reddit, lambda body: "\n" not in body and len(comment) in body)
+                        if comment:
+                            comment = backend.utils.polish_comment(comment)
                             post.comment = comment
                     ret.append(post)
                     added_submissions.append(s.id)
@@ -352,28 +266,14 @@ def media_submissions(sub, max_scenes=100000, max_comment_chars=80):
         return []
 
 
-def load_first_comment(post_id, reddit=None):
+def load_first_comment(post_id, reddit=None, condition=None):
     if not reddit:
-        reddit = praw.Reddit(
-            client_id=Reddit.client_id,
-            client_secret=Reddit.client_secret,
-            user_agent=Reddit.user_agent,
-            check_for_updates="False",
-            comment_kind="t1",
-            message_kind="t4",
-            redditor_kind="t2",
-            submission_kind="t3",
-            subreddit_kind="t5",
-            trophy_kind="t6",
-            oauth_url="https://oauth.reddit.com",
-            reddit_url="https://www.reddit.com",
-            short_url="https://redd.it"
-        )
-        reddit.read_only = True
+        reddit = get_reddit_instance()
 
     submission = reddit.submission(post_id)
     for comment in submission.comments:
-        if comment.author and not comment.author.is_mod:  # Only way to detect bots like Automod currently
+        if comment.author and not comment.author.is_mod \
+                and (not condition or condition(comment.body)):
             return comment.body
 
 

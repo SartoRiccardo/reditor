@@ -17,3 +17,10 @@ import classes.Subtitle
 GuiLogger = classes.GuiLogger.GuiLogger
 CustomProgressBar = classes.CustomProgressBar.CustomProgressBar
 Subtitle = classes.Subtitle.Subtitle
+
+import classes.ImageLink
+import classes.MediaPost
+import classes.IntVar
+ImageLink = classes.ImageLink.ImageLink
+MediaPost = classes.MediaPost.MediaPost
+IntVar = classes.IntVar.IntVar
