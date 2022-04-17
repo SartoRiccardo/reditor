@@ -1,7 +1,5 @@
 import os
 
-# TODO some refactoring from the util.io file
-
 
 DATA_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),

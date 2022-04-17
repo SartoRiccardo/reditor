@@ -373,7 +373,7 @@ def load_first_comment(post_id, reddit=None):
 
     submission = reddit.submission(post_id)
     for comment in submission.comments:
-        if not comment.author.is_mod:  # Only way to detect bots like Automod currently
+        if comment.author and not comment.author.is_mod:  # Only way to detect bots like Automod currently
             return comment.body
 
 
