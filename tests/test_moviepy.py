@@ -18,7 +18,7 @@ class MPYTest(TestCaseExtended):
             return surface.get_npimage()  # returns a 8-bit RGB array
 
         clip = mpy.VideoClip(make_frame, duration=2)  # 2 seconds
-        clip.write_gif("./test-gif.gif", fps=15)
+        clip.write_gif("./test-gif.gif", fps=15, logger=None)
         self.assertFileExists("./test-gif.gif")
         os.remove("./test-gif.gif")
 
@@ -39,7 +39,7 @@ class MPYTest(TestCaseExtended):
         txt_clip = txt_clip.set_position('center').set_duration(10)
 
         video = mpy.CompositeVideoClip([clip, txt_clip])
-        video.write_videofile("./test-text.mp4", fps=1)
+        video.write_videofile("./test-text.mp4", fps=1, logger=None)
         self.assertFileExists("./test-text.mp4")
         os.remove("./test-text.mp4")
 

@@ -1,14 +1,14 @@
-import classes.Part
-import classes.ScriptComponent
+from classes.video.Part import Part
+from classes.video.ScriptComponent import ScriptComponent
+import classes.video
 import os
 import shutil
 import backend.utils
 import traceback
-from backend.paths import p
 import base64
 
 
-class Scene(classes.ScriptComponent.ScriptComponent):
+class Scene(ScriptComponent):
     def __init__(self, document, scene_id):
         super().__init__(document)
         self.id = scene_id
@@ -62,7 +62,7 @@ class Scene(classes.ScriptComponent.ScriptComponent):
             temp_parts.append(ln)
             if len(temp_parts) == chunk_size:
                 try:
-                    self.script.append(classes.Part("".join(temp_parts)))
+                    self.script.append(Part("".join(temp_parts)))
                 except Exception as ex:
                     print(traceback.format_exc())
                     raise ex
@@ -125,7 +125,7 @@ class Scene(classes.ScriptComponent.ScriptComponent):
         fscene.write("\n\n".join([str(part) for part in self.script]))
         fscene.close()
 
-    def change_part(self, part_idx: int, new_part: classes.Part):
+    def change_part(self, part_idx: int, new_part: Part):
         self.load()
         if len(self.script) > part_idx >= 0:
             self.script[part_idx] = new_part
@@ -151,5 +151,5 @@ class Scene(classes.ScriptComponent.ScriptComponent):
 
     @staticmethod
     def get_path(document_id: int, scene_id: int):
-        document = classes.Document(document_id)
+        document = classes.video.Document(document_id)
         return Scene(document, scene_id).path

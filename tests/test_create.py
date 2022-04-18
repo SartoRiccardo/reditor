@@ -8,8 +8,6 @@ import shutil
 
 
 class TestCreation(TestCaseExtended):
-    to_export = None
-
     @classmethod
     def setUpClass(cls):
         urls = [
@@ -29,12 +27,9 @@ class TestCreation(TestCaseExtended):
             if not os.path.exists(f"./tests-music/song-{i}.mp3"):
                 backend.requests.download_resource(urls[i], f"./tests-music/song-{i}.mp3")
 
-        if not os.path.exists("./tests-export"):
-            os.mkdir("./tests-export")
-
     @classmethod
     def tearDownClass(cls):
-        paths_to_remove = ["./tests-music", "./tests-export"]
+        paths_to_remove = ["./tests-music"]
         for path in paths_to_remove:
             if os.path.exists(path):
                 shutil.rmtree(path)
@@ -45,16 +40,6 @@ class TestCreation(TestCaseExtended):
 
     def test_media_video_created(self):
         self.to_export = backend.editor.make_media_video("nonononoyes", "./tests-music")
-
-    def test_export_video(self):
-        backend.video.FPS = 1
-        self.assertIsNotNone(self.to_export)
-        self.to_export.export("./tests-export", lambda x: x)
-        self.assertFileExists("./tests-export/video.mp4")
-        self.assertFileExists("./tests-export/subtitles.srt")
-
-        if self.to_export:
-            self.to_export.delete()
 
 
 if __name__ == '__main__':

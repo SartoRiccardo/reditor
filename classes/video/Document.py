@@ -1,12 +1,13 @@
 import csv
 import os
 import shutil
-from backend.paths import p
-import classes
+import backend.paths
+import classes.video
 import backend.video
 import traceback
 from random import randint
-from typing import List, Union
+from typing import Union
+p = backend.paths.p
 
 
 class Document:
@@ -84,7 +85,7 @@ class Document:
             for scene in self.script:
                 if duration >= rate_limit_max_time > 0:
                     break
-                if isinstance(scene, classes.Scene):
+                if isinstance(scene, classes.video.Scene):
                     backend.video.download_audios_for(scene, self.get_cache_dir())
                     duration += scene.get_duration()
         except Exception as exc:
@@ -112,7 +113,7 @@ class Document:
         total_duration = 0
         for i in range(len(self.script)):
             s = self.script[i]
-            if not isinstance(s, classes.Scene):
+            if not isinstance(s, classes.video.Scene):
                 continue
 
             s_len = s.get_duration()
@@ -166,7 +167,7 @@ class Document:
         new_song_idxs = []
         for i in range(len(self.script)):
             s = self.script[i]
-            if not isinstance(s, classes.Scene):
+            if not isinstance(s, classes.video.Scene):
                 continue
 
             s_len = s.get_duration()
@@ -174,7 +175,7 @@ class Document:
             # add a transition and a soundtrack immediately after the previously analyzed
             # scene.
             if duration+s_len >= max_duration or duration+s_len >= soundtrack_len-10:
-                self.add_empty_scenes(classes.Transition, classes.Soundtrack)
+                self.add_empty_scenes(classes.video.Transition, classes.video.Soundtrack)
                 soundtrack_number += 1
                 rand_i = randint(0, len(soundtracks)-1)
                 chosen_soundtrack = soundtracks.pop(rand_i)
@@ -240,12 +241,12 @@ class Document:
                 if command == "ost" and len(parts) > 1:
                     parts = parts[:1] + "]".join(parts[1:]).split(";")
                     soundtrack_id = int(parts[1])
-                    self.script.append(classes.Soundtrack(self, soundtrack_id, ";".join(parts[2:])))
+                    self.script.append(classes.video.Soundtrack(self, soundtrack_id, ";".join(parts[2:])))
                 elif command == "transition":
-                    self.script.append(classes.Transition(self))
+                    self.script.append(classes.video.Transition(self))
             else:
                 scenes += 1
-                new_scene = classes.Scene(self, int(ln))
+                new_scene = classes.video.Scene(self, int(ln))
                 new_scene.load()
                 self.script.append(new_scene)
 
@@ -307,22 +308,22 @@ class Document:
         # Create new empty scenes
         new_scenes = []
         for t in scenes:
-            if t == classes.Soundtrack:
+            if t == classes.video.Soundtrack:
                 new_ost_id = int(self.get_config("next-soundtrack-id"))
                 new_script_str = f"[ost]{new_ost_id:05d};"
-                new_item = classes.Soundtrack(self, new_ost_id)
+                new_item = classes.video.Soundtrack(self, new_ost_id)
                 self.write_config("next-soundtrack-id", new_ost_id+1)
 
-            elif t == classes.Scene:
+            elif t == classes.video.Scene:
                 new_scene_id = int(self.get_config("next-scene-id"))
                 new_script_str = f"{new_scene_id:05d}"
-                new_item = classes.Scene(self, new_scene_id)
+                new_item = classes.video.Scene(self, new_scene_id)
                 new_item.initialize()
                 self.write_config("next-scene-id", new_scene_id+1)
 
             else:
                 new_script_str = "[transition]"
-                new_item = classes.Transition(self)
+                new_item = classes.video.Transition(self)
 
             new_scenes.append(new_item)
             self.script.insert(-1, new_item)
@@ -387,29 +388,29 @@ class Document:
     def get_scene_amount(self):
         amount = 0
         for component in self.script:
-            if isinstance(component, classes.Scene):
+            if isinstance(component, classes.video.Scene):
                 amount += 1
         return amount
 
     def get_scene(self, scene_id):
         for scene in self.script:
-            if not isinstance(scene, classes.Scene):
+            if not isinstance(scene, classes.video.Scene):
                 continue
             if scene.id == scene_id:
                 return scene
 
-        scene = classes.Scene(self, scene_id)
+        scene = classes.video.Scene(self, scene_id)
         loaded = scene.load()
         return scene if loaded else None
 
     def get_soundtrack(self, soundtrack_id):
         for soundtrack in self.script:
-            if not isinstance(soundtrack, classes.Soundtrack):
+            if not isinstance(soundtrack, classes.video.Soundtrack):
                 continue
             if soundtrack.soundtrack_id == soundtrack_id:
                 return soundtrack
 
-        soundtrack = classes.Soundtrack(self, soundtrack_id)
+        soundtrack = classes.video.Soundtrack(self, soundtrack_id)
         return soundtrack
 
     def get_component_amount(self):

@@ -1,5 +1,6 @@
 import imageio
-import classes
+import classes.video
+import classes.export
 import gizeh
 import gc
 import classes
@@ -55,7 +56,7 @@ CAPTION_MARGIN_Y = 10
 CAPTION_TEXT_SIZE = 42
 
 
-def export_video(document: classes.Document, out_dir: str, gui_callback=None, video_name="video.mp4"):
+def export_video(document: classes.video.Document, out_dir: str, gui_callback=None, video_name="video.mp4"):
     """
     A wrapper for an easier time trying and excepting.
     :param document: The document to export.
@@ -63,7 +64,7 @@ def export_video(document: classes.Document, out_dir: str, gui_callback=None, vi
     :param gui_callback: A function called every time the state changes.
     :param video_name: The name of the file.
     """
-    logger = classes.GuiLogger(gui_callback)
+    logger = classes.export.GuiLogger(gui_callback)
     logger.log({"status": "download-audio"})
     try:
         backend.log.export_start(document.id)
@@ -75,7 +76,7 @@ def export_video(document: classes.Document, out_dir: str, gui_callback=None, vi
         raise exc
 
 
-def export_video_wrapped(document: classes.Document, out_dir: str, video_name: str, logger: classes.GuiLogger=None):
+def export_video_wrapped(document: classes.video.Document, out_dir: str, video_name: str, logger=None):
     """
     Pieces together the video with all the info found in the document's directory.
     :param document: The document to export.
@@ -88,13 +89,13 @@ def export_video_wrapped(document: classes.Document, out_dir: str, video_name: s
 
     chunks = 1
     for s in document.script:
-        if isinstance(s, classes.Transition):
+        if isinstance(s, classes.video.Transition):
             chunks += 1
-        elif isinstance(s, classes.Scene):
+        elif isinstance(s, classes.video.Scene):
             download_audios_for(s, document.get_cache_dir())
     logger.set_chunks(chunks)
 
-    chunk_logger = classes.CustomProgressBar(gui_callback=logger.log)
+    chunk_logger = classes.export.CustomProgressBar(gui_callback=logger.log)
 
     transition = VideoFileClip(backend.editor.DATA_PATH + "/assets/transition.mp4")
     intro = VideoFileClip(backend.editor.DATA_PATH + "/assets/intro.mp4")
@@ -124,13 +125,13 @@ def export_video_wrapped(document: classes.Document, out_dir: str, video_name: s
 
     for i in range(len(document.script)):
         s = document.script[i]
-        if isinstance(s, classes.Soundtrack):
+        if isinstance(s, classes.video.Soundtrack):
             part_soundtrack = AudioFileClip(s.path). \
                 set_start(t). \
                 fx(audio_normalize). \
                 volumex(0.1)
 
-        elif isinstance(s, classes.Transition):
+        elif isinstance(s, classes.video.Transition):
             has_transitioned_once = True
             if part_soundtrack:
                 part_start = part_soundtrack.start
@@ -163,7 +164,7 @@ def export_video_wrapped(document: classes.Document, out_dir: str, video_name: s
 
             temp_video_durations.append(t)
             t = 0
-            chunk_logger = classes.CustomProgressBar(gui_callback=logger.log)
+            chunk_logger = classes.export.CustomProgressBar(gui_callback=logger.log)
             for c in clips:
                 c.close()
             clips = [background]
@@ -173,10 +174,10 @@ def export_video_wrapped(document: classes.Document, out_dir: str, video_name: s
             audio_clip.close()
             video.close()
 
-        elif isinstance(s, classes.Scene):
+        elif isinstance(s, classes.video.Scene):
             scenes_left = 0
             for j in range(i+1, len(document.script)):
-                if isinstance(document.script[j], classes.Scene):
+                if isinstance(document.script[j], classes.video.Scene):
                     scenes_left += 1
 
             scene_clips, part_subtitles, t = get_scene_clips(
@@ -244,13 +245,13 @@ def export_video_wrapped(document: classes.Document, out_dir: str, video_name: s
             fsub.write("\n")
     fsub.close()
 
-    chunk_logger = classes.CustomProgressBar(gui_callback=logger.log, fps=FPS)
+    chunk_logger = classes.export.CustomProgressBar(gui_callback=logger.log, fps=FPS)
     composite_videos(temp_video_paths, f"{out_dir}/{video_name}", chunk_logger)
     for tmp_vid in temp_video_paths:
         os.remove(tmp_vid)
 
 
-def get_scene_clips(t: int, scene: classes.Scene, is_last=False, complete_video_t=None):
+def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
     """
     Creates audio and image clips with the given scene
     :param t: The time the scene will start at.
@@ -315,7 +316,7 @@ def get_scene_clips(t: int, scene: classes.Scene, is_last=False, complete_video_
             part_audio = part_audio.set_end(t + part_audio.duration - 0.05)
                 # audio_fadeout(0.1)
             audios.append(part_audio)
-            subtitles.append(classes.Subtitle(part.text, complete_video_t+t, complete_video_t+t+part_audio.duration))
+            subtitles.append(classes.export.Subtitle(part.text, complete_video_t+t, complete_video_t+t+part_audio.duration))
             wait_length += part_audio.duration
 
         if not part.is_crop_empty():
@@ -354,7 +355,7 @@ def composite_videos(paths, out_file, logger="bar"):
         clips.append(vc)
         t += vc.duration
 
-    if isinstance(logger, classes.CustomProgressBar):
+    if isinstance(logger, classes.export.CustomProgressBar):
         logger.set_total_frames(FPS * t)
     video = CompositeVideoClip(clips). \
         set_duration(t)
@@ -367,7 +368,7 @@ def composite_videos(paths, out_file, logger="bar"):
     gc.collect()
 
 
-def download_audios_for(scene: classes.Scene, download_dir: str):
+def download_audios_for(scene: classes.video.Scene, download_dir: str):
     """
     Downloads all audios for a specific scene.
     :param scene: The scene to download the audios for

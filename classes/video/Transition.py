@@ -1,4 +1,4 @@
-from classes.ScriptComponent import ScriptComponent
+from classes.video.ScriptComponent import ScriptComponent
 
 
 class Transition(ScriptComponent):

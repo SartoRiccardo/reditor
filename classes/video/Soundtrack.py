@@ -1,4 +1,4 @@
-from classes.ScriptComponent import ScriptComponent
+from classes.video.ScriptComponent import ScriptComponent
 import backend.utils
 import shutil
 import os

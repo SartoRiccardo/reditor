@@ -2,6 +2,7 @@ from credentials import Reddit, Amazon, Twitter
 import json
 import urllib3
 from random import random
+import traceback
 import os
 import re
 import hashlib
@@ -10,7 +11,7 @@ import datetime
 import praw
 import twitter
 import backend.editor
-from classes import ImageLink, MediaPost, IntVar
+from classes.misc import *
 
 
 http = urllib3.PoolManager()
@@ -101,8 +102,8 @@ def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
 
         return ret
 
-    except Exception as ex:
-        print(ex)
+    except Exception:
+        print(traceback.format_exc())
         return []
 
 
@@ -128,8 +129,8 @@ def post_comments(thread_id):
                 ret.append(ImageLink(path, is_url=False))
         return ret
 
-    except Exception as ex:
-        print(ex)
+    except Exception:
+        print(traceback.format_exc())
         return []
 
 
@@ -252,7 +253,8 @@ def media_submissions(sub: str, max_scenes=100000, comment_chars=range(30, 80)):
 
                 if post:
                     if random() < COMMENT_CHANCE:
-                        comment = load_first_comment(s.id, reddit, lambda body: "\n" not in body and len(comment) in body)
+                        comment = load_first_comment(s.id, reddit,
+                                                     lambda body: "\n" not in body and len(body) in comment_chars)
                         if comment:
                             comment = backend.utils.polish_comment(comment)
                             post.comment = comment
@@ -261,8 +263,8 @@ def media_submissions(sub: str, max_scenes=100000, comment_chars=range(30, 80)):
 
         return ret
 
-    except Exception as ex:
-        print(f"Exception: {ex}")
+    except Exception:
+        print(traceback.format_exc())
         return []
 
 

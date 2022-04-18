@@ -12,7 +12,7 @@ from PIL import Image
 import pytesseract
 import re
 from random import randint, choice
-from classes import Document, Scene, Transition, Soundtrack, Part
+from classes.video import Document, Scene, Transition, Soundtrack, Part
 from typing import List
 pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
