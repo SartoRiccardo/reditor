@@ -2,8 +2,8 @@ import csv
 import os
 import shutil
 import backend.paths
-import classes.video
 import backend.video
+import classes.video
 import traceback
 from random import randint
 from typing import Union
@@ -278,6 +278,7 @@ class Document:
             shutil.rmtree(self.path)
 
     def export(self, export_dir, log_callback=None):
+        self.load()
         if os.path.exists(export_dir):
             shutil.rmtree(export_dir)
         os.mkdir(export_dir)

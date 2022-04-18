@@ -1,5 +1,8 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import imageio
-import classes.video
+if TYPE_CHECKING:
+    import classes.video
 import classes.export
 import gizeh
 import gc
@@ -34,6 +37,7 @@ except imageio.core.fetching.NeedDownloadError:
     imageio.plugins.ffmpeg.download()
 import backend.editor
 import backend.requests
+import backend.log
 import PIL
 import os
 
@@ -159,7 +163,7 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
             temp_video_path = cache_dir + f"/tmp-{len(temp_video_paths)}.mp4"
             temp_audio_path = cache_dir + f"/tmp-{len(temp_video_paths)}-aud.mp4"
             video.write_videofile(temp_video_path, fps=FPS, audio_codec="aac", logger=chunk_logger,
-                                  temp_audiofile=temp_audio_path)
+                                  temp_audiofile=temp_audio_path, codec="libx264")
             temp_video_paths.append(temp_video_path)
 
             temp_video_durations.append(t)
@@ -222,7 +226,7 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
     temp_video_path = cache_dir + f"/tmp-{len(temp_video_paths)}.mp4"
     temp_audio_path = cache_dir + f"/tmp-{len(temp_video_paths)}-aud.mp4"
     video.write_videofile(temp_video_path, fps=FPS, audio_codec="aac", logger=chunk_logger,
-                          temp_audiofile=temp_audio_path)
+                          temp_audiofile=temp_audio_path, codec="libx264")
     temp_video_paths.append(temp_video_path)
 
     for c in clips:
@@ -361,7 +365,7 @@ def composite_videos(paths, out_file, logger="bar"):
         set_duration(t)
     temp_audio_path = out_file[:-4]+"-aud.mp4"
     video.write_videofile(out_file, fps=FPS, audio_codec="aac", logger=logger,
-                          temp_audiofile=temp_audio_path)
+                          temp_audiofile=temp_audio_path, codec="libx264")
     video.close()
     for clip in clips:
         clip.close()

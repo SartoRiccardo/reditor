@@ -8,17 +8,22 @@ import backend.requests
 import backend.video
 
 
-class TestCreation(TestCaseExtended):
-    zip_path = "./data/saves.zip"
-    saves_path = "./data/saves"
+class TestExport(TestCaseExtended):
+    data_path = "./data"
+    zip_path = f"{data_path}/saves.zip"
+    saves_path = f"{data_path}/saves"
     saves_path_tmp = f"{saves_path}-tmp"
+    export_path = "./tests-export"
 
     @classmethod
     def setUpClass(cls):
-        backend.requests.download_resource("https://www.riccardosartori.it/cdn/saves.zip", cls.zip_path)
+        if not os.path.exists(cls.zip_path):
+            backend.requests.download_resource("https://www.riccardosartori.it/cdn/saves.zip", cls.zip_path)
         if os.path.exists(cls.saves_path):
             shutil.move(cls.saves_path, cls.saves_path_tmp)
-        shutil.unpack_archive(cls.zip_path)
+        shutil.unpack_archive(cls.zip_path, cls.data_path, "zip")
+        if os.path.exists(f"{cls.data_path}/__MACOSX"):
+            shutil.rmtree(f"{cls.data_path}/__MACOSX")
 
     @classmethod
     def tearDownClass(cls):
@@ -30,16 +35,16 @@ class TestCreation(TestCaseExtended):
         if os.path.exists(cls.zip_path):
             os.remove(cls.zip_path)
 
+        if os.path.exists(cls.export_path):
+            shutil.rmtree(cls.export_path)
+
     def test_export_video(self):
-        return
         backend.video.FPS = 1
 
         document = classes.video.Document(0)
-        document.export("./tests-export", lambda x: x)
-        self.assertFileExists("./tests-export/video.mp4")
-        self.assertFileExists("./tests-export/subtitles.srt")
-
-        shutil.move("./data/saves", "./data/saves-tmp")
+        document.export(self.export_path, lambda x: x)
+        self.assertFileExists(f"{self.export_path}/nonononoyes-auto.mp4")
+        self.assertFileExists(f"{self.export_path}/subtitles.srt")
 
 
 if __name__ == '__main__':

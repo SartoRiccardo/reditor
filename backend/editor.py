@@ -221,10 +221,11 @@ def set_song(document_id: int, soundtrack_id: int, name: str, payload, is_path=F
     return Document(document_id).set_song(soundtrack_id, name, payload, is_path)
 
 
-def export_file(document_id, log_callback=None):
+def export_file(document_id, log_callback=None, export_dir=None):
     document = Document(document_id)
     document.load()
-    export_dir = DOWNLOAD_PATH + f"/{document.name}-export"
+    if export_dir is None:
+        export_dir = DOWNLOAD_PATH + f"/{document.name}-export"
     return document.export(export_dir, log_callback)
 
 
