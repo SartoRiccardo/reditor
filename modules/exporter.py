@@ -45,21 +45,16 @@ class Exporter(threading.Thread):
 
         bgm_dir = backend.database.config("rdt_bgmdir")
         Logger.log(f"Creating **{title}**", Logger.INFO)
-        backend.editor.download_images("askreddit", chosen["thread"], {"bgmDir": bgm_dir})
-
-        files = backend.editor.get_files()
-        if len(files) == 0:
-            return
-        to_export = files[0].id
+        document = backend.editor.make_askreddit_video(chosen["thread"], bgm_dir)
 
         Logger.log(f"Exporting **{title}**", Logger.INFO)
         if not chosen["title"]:
             Logger.log(f"No title or thumbnail for **{chosen['thread_title']}**", Logger.WARN)
 
-        backend.editor.export_file(to_export, log_callback=self.check_errors)
+        document.export(f"{DOWNLOAD_PATH}/{document.name}-export", log_callback=self.check_errors)
         if not self.error_exporting:
             backend.database.confirm_export(chosen["thread"])
-        backend.editor.delete_file(to_export)
+        document.delete()
         Logger.log(f"Exported **{title}**", Logger.SUCCESS)
         gc.collect()
 
