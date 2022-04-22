@@ -1,5 +1,7 @@
 from PIL import Image, ImageFont, ImageDraw
-import backend
+import backend.paths
+import backend.utils
+import backend.editor
 import os
 import re
 import json
