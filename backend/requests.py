@@ -154,7 +154,7 @@ def get_simplified_comments(forest, max_comment_roots=35, max_comments_per_tree=
     comments = 0
     for comment in forest:
         if isinstance(comment, praw.reddit.models.MoreComments) or \
-                comment.body == "[removed]":
+                comment.body in ["[removed]", "[deleted]"]:
             continue
 
         if comments >= max_comment_roots:
@@ -171,11 +171,14 @@ def get_simplified_comments(forest, max_comment_roots=35, max_comments_per_tree=
     return ret
 
 
-def get_simplified_nested_comments(forest, max_comments, current_comments=IntVar(1)):
+def get_simplified_nested_comments(forest, max_comments, current_comments=None):
+    if current_comments is None:
+        current_comments = IntVar(1)
+
     ret = []
     for comment in forest:
         if isinstance(comment, praw.reddit.models.MoreComments) or \
-                comment.body == "[removed]":
+                comment.body in ["[removed]", "[deleted]"]:
             continue
 
         if current_comments >= max_comments:
