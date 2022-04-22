@@ -50,7 +50,7 @@ class Exporter(threading.Thread):
         files = backend.editor.get_files()
         if len(files) == 0:
             return
-        to_export = files[0]["id"]
+        to_export = files[0].id
 
         Logger.log(f"Exporting **{title}**", Logger.INFO)
         if not chosen["title"]:
