@@ -13,22 +13,22 @@ def remove_stop():
 
 
 if __name__ == '__main__':
-    up = modules.uploader.Uploader()
-    exp = modules.exporter.Exporter()
+    threads = [
+        modules.uploader.Uploader(),
+        modules.exporter.Exporter(),
+        modules.creator.Creator(),
+    ]
     c = modules.nohupclearer.NoHupClearer()
     
     c.start()
     time.sleep(1)
-    up.start()
-    exp.start()
+    [t.start() for t in threads]
 
     while not should_stop():
         time.sleep(10)
     remove_stop()
-    up.stop()
-    exp.stop()
+    [t.stop() for t in threads]
     c.stop()
 
-    up.join()
-    exp.join()
+    [t.join() for t in threads]
     c.join()

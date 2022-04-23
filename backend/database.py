@@ -8,22 +8,36 @@ conn = psycopg2.connect(
 conn.set_session(autocommit=True)
 
 
-def get_videos():
+def get_videos(with_thumbnail=False):
+    """
+    Gets videos that haven't been exported. The ones that have a thumbnail are
+    put at the top.
+    :with_thumbnail: Excludes videos that don't have a thumbnail, if True
+    """
     cur = conn.cursor()
-    cur.execute("""
-        SELECT vid.thread, vid.title, vid.thumbnail, thr.title, vid.url
+    cur.execute(f"""
+        SELECT vid.thread, vid.title, vid.thumbnail, thr.title, vid.url, vid.document_id
         FROM rdt_videos as vid
             JOIN rdt_threads as thr ON vid.thread = thr.id
-        WHERE NOT exported
+        WHERE NOT exported {"AND thumbnail IS NOT NULL" if with_thumbnail else ""}
         ORDER BY thumbnail ASC
     """)
     rows = cur.fetchall()
     rows = [
         {"thread": r[0], "title": r[1], "thumbnail": r[2], "thread_title": r[3],
-         "url": r[4]}
+         "url": r[4], "document_id": r[5]}
         for r in rows
     ]
     return rows
+
+
+def confirm_video_creation(thread_id, document_id):
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE rdt_videos
+        SET document_id=%s
+        WHERE thread=%s
+    """, [document_id, thread_id])
 
 
 def confirm_video_upload(thread, url):

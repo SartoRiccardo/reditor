@@ -416,3 +416,10 @@ class Document:
 
     def get_component_amount(self):
         return len(self.script)
+
+    def get_scenes(self):
+        scenes = []
+        for scene in self.script:
+            if isinstance(scene, classes.video.Scene):
+                scenes.append(scene)
+        return scenes

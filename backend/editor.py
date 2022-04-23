@@ -403,11 +403,11 @@ def make_media_video(target: str, bgm_dir: str, max_duration=10*60):
     return document
 
 
-def make_askreddit_video(target, bgm_dir, max_duration=10*60):
-    posts = backend.requests.post_comments(target)
+def make_askreddit_video(target, bgm_dir=None, max_duration=10*60):
     name = f"{target}-auto"
     document = Document.new(name)
 
+    posts = backend.requests.post_comments(target)
     for i in range(len(posts)):
         path = posts[i].path
         if os.path.exists(path+".txt"):
@@ -417,7 +417,8 @@ def make_askreddit_video(target, bgm_dir, max_duration=10*60):
 
     document.load()
     document.truncate_duration(max_duration)
-    document.add_soundtracks(bgm_dir)
+    if bgm_dir:
+        document.add_soundtracks(bgm_dir)
     return document
 
 

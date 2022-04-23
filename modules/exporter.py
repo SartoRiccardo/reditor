@@ -2,11 +2,13 @@ import threading
 import time
 from random import randint
 import backend.database
+import backend.websockets
 from datetime import datetime, timedelta
 import backend.editor
 import os
 import gc
 from backend.paths import DOWNLOAD_PATH
+from classes.video.Document import Document
 import requests
 from modules.logger import Logger
 import traceback
@@ -40,17 +42,22 @@ class Exporter(threading.Thread):
         videos = backend.database.get_videos()
         if len(videos) == 0:
             return
+
+        print(videos)
         chosen = Exporter.choose_video(videos)
+        print(f"CHOSEN: {chosen}")
         title = chosen["title"] if chosen["title"] else chosen["thread_title"]
 
+        Logger.log(f"Adding soundtracks for **{title}**", Logger.DEBUG)
         bgm_dir = backend.database.config("rdt_bgmdir")
-        Logger.log(f"Creating **{title}**", Logger.INFO)
-        document = backend.editor.make_askreddit_video(chosen["thread"], bgm_dir)
+        document = Document(chosen["document_id"])
+        document.add_soundtracks(bgm_dir)
 
         Logger.log(f"Exporting **{title}**", Logger.INFO)
         if not chosen["title"]:
             Logger.log(f"No title or thumbnail for **{chosen['thread_title']}**", Logger.WARN)
 
+        self.notify_bot_export_start(document)
         document.export(f"{DOWNLOAD_PATH}/{document.name}-export", log_callback=self.check_errors)
         if not self.error_exporting:
             backend.database.confirm_export(chosen["thread"])
@@ -81,6 +88,10 @@ class Exporter(threading.Thread):
                 ret.append(d.split("-")[0])
 
         return ret
+
+    @staticmethod
+    def notify_bot_export_start(document):
+        backend.websockets.send_to_discord_bot("EXPORT", document.id)
 
     @staticmethod
     def choose_video(videos):
