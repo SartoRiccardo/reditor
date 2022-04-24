@@ -331,7 +331,6 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
                 wait_length += media_raw.duration
 
         if "reaction" in part.fields:
-            # Reactions can currently be "think", "joy", "shrug", and "smug"
             reactions.append(get_reaction_clip(t, part.fields['reaction']))
 
         if "written" in part.fields:

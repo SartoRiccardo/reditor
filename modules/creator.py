@@ -3,7 +3,7 @@ from modules.exporter import Exporter
 import backend.editor
 import time
 import backend.database
-import backend.websockets
+import backend.server
 from datetime import datetime, timedelta
 import backend.editor
 from modules.logger import Logger
@@ -46,15 +46,16 @@ class Creator(threading.Thread):
             backend.database.confirm_video_creation(vid["thread"], document.id)
             Logger.log(f"Created **{title}**", Logger.SUCCESS)
 
-            self.notify_bot_creation(document)
+            self.notify_bot_creation(vid["thread"], document)
 
         time.sleep(10)
 
     @staticmethod
-    def notify_bot_creation(document):
+    def notify_bot_creation(thread_id, document):
         scenes = document.get_scenes()
         scenes = [{"id": scene.id, "media": scene.get_media_path()} for scene in scenes]
-        backend.websockets.send_to_discord_bot("VIDEO_CREATED", {"id": document.id, "scenes": scenes})
+        payload = {"thread_id": thread_id, "video_id": document.id, "scenes": scenes}
+        backend.server.send_to_discord_bot("VIDEO_CREATED", payload)
 
     def stop(self):
         self.active = False

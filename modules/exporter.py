@@ -2,7 +2,7 @@ import threading
 import time
 from random import randint
 import backend.database
-import backend.websockets
+import backend.server
 from datetime import datetime, timedelta
 import backend.editor
 import os
@@ -91,7 +91,7 @@ class Exporter(threading.Thread):
 
     @staticmethod
     def notify_bot_export_start(document):
-        backend.websockets.send_to_discord_bot("EXPORT", document.id)
+        backend.server.send_to_discord_bot("EXPORT", document.id)
 
     @staticmethod
     def choose_video(videos):
