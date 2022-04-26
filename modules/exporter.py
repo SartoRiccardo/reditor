@@ -39,13 +39,11 @@ class Exporter(threading.Thread):
             return
         self.last_loop = datetime.now()
 
-        videos = backend.database.get_videos()
+        videos = backend.database.get_videos(created=True)
         if len(videos) == 0:
             return
 
-        print(videos)
         chosen = Exporter.choose_video(videos)
-        print(f"CHOSEN: {chosen}")
         title = chosen["title"] if chosen["title"] else chosen["thread_title"]
 
         Logger.log(f"Adding soundtracks for **{title}**", Logger.DEBUG)
@@ -104,5 +102,8 @@ class Exporter(threading.Thread):
         if ready_count > 0:
             return videos[randint(0, ready_count-1)]
 
-        Logger.log("No videos currently have title/thumbnail set!", Logger.WARN)
+        if len(videos) == 0:
+            Logger.log("No videos created!", Logger.WARN)
+        else:
+            Logger.log("No videos currently have title/thumbnail set!", Logger.WARN)
         return videos[randint(0, len(videos)-1)]

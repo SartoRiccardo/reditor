@@ -8,7 +8,7 @@ conn = psycopg2.connect(
 conn.set_session(autocommit=True)
 
 
-def get_videos(with_thumbnail=False):
+def get_videos(with_thumbnail=False, created=False):
     """
     Gets videos that haven't been exported. The ones that have a thumbnail are
     put at the top.
@@ -19,7 +19,9 @@ def get_videos(with_thumbnail=False):
         SELECT vid.thread, vid.title, vid.thumbnail, thr.title, vid.url, vid.document_id
         FROM rdt_videos as vid
             JOIN rdt_threads as thr ON vid.thread = thr.id
-        WHERE NOT exported {"AND thumbnail IS NOT NULL" if with_thumbnail else ""}
+        WHERE NOT exported
+        {"AND thumbnail IS NOT NULL" if with_thumbnail else ""}
+        {"AND document_id IS NOT NULL" if created else ""}
         ORDER BY thumbnail ASC
     """)
     rows = cur.fetchall()

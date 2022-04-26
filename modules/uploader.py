@@ -107,9 +107,9 @@ class Uploader(threading.Thread):
 
         videos = backend.database.get_complete_videos()
         for v in videos:
-            if os.path.exists(f"{DOWNLOAD_PATH}/{v['thread']}-export"):
+            if os.path.exists(f"{DOWNLOAD_PATH}/{v['thread']}-auto-export"):
                 ret.append({
-                    "path": f"{DOWNLOAD_PATH}/{v['thread']}-export",
+                    "path": f"{DOWNLOAD_PATH}/{v['thread']}-auto-export",
                     "id": v["thread"]
                 })
 
