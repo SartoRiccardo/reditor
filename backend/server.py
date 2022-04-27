@@ -1,6 +1,7 @@
 import asyncio
 import websockets
 import inspect
+import modules.logger
 
 
 PORT_BASE = 52900
@@ -9,6 +10,10 @@ PORT_DISCORD = PORT_BASE + 2
 
 
 actions = {}
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
 
 
 async def receive(websocket):
@@ -32,8 +37,13 @@ async def start():
 
 def send_to_discord_bot(action, payload, response=False):
     async def send():
-        async with websockets.connect(f"ws://localhost:{PORT_DISCORD}") as websocket:
+        try:
+            websocket = await websockets.connect(f"ws://localhost:{PORT_DISCORD}")
             await websocket.send({"action": action, "body": payload})
             if response:
                 return await websocket.recv()
-    return asyncio.get_event_loop().run_until_complete(send())
+            websocket.close()
+        except OSError:
+            modules.logger.Logger.log("Discord bot server not online", modules.logger.Logger.WARN)
+
+    return loop.run_until_complete(send())
