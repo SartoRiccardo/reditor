@@ -14,7 +14,7 @@ import traceback
 
 class Uploader(threading.Thread):
     UPLOAD_EVERY_DAYS = 1
-    UPLOAD_HOUR = 21 - 1  # UTC+000, I live in UTC+001
+    UPLOAD_HOUR = 21 - 2  # UTC+000, I live in UTC+002
     UPLOAD_MINUTE = 50
 
     def __init__(self):
@@ -56,7 +56,7 @@ class Uploader(threading.Thread):
 
         title_safe = self.turn_to_path(video_data["title"])
         video_path = f"{to_upload['path']}/{title_safe}.mp4"
-        os.rename(f"{to_upload['path']}/{to_upload['id']}.mp4", video_path)
+        os.rename(f"{to_upload['path']}/{to_upload['id']}-auto.mp4", video_path)
 
         video = {
             "title": video_data["title"],
