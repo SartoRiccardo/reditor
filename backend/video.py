@@ -44,10 +44,11 @@ import os
 
 WHITE = (255, 255, 255)
 SIZES = {
-    720: (1280, 720),
-    1080: (1920, 1080),
+    "720": (1280, 720),
+    "1080": (1920, 1080),
+    "720-v": (720, 1280),
+    "1080-v": (1080, 1920),
 }
-VIDEO_SIZE = SIZES[720]
 SOUNDTRACK_FADE_TIME = 1
 VIDEO_FADE_TIME = 1
 FPS = 25
@@ -60,19 +61,25 @@ CAPTION_MARGIN_Y = 10
 CAPTION_TEXT_SIZE = 42
 
 
-def export_video(document: classes.video.Document, out_dir: str, gui_callback=None, video_name="video.mp4"):
+def export_video(
+        document: classes.video.Document,
+        out_dir: str,
+        gui_callback=None,
+        video_name="video.mp4",
+        size="720-p"):
     """
     A wrapper for an easier time trying and excepting.
     :param document: The document to export.
     :param out_dir: A path pointing to a new directory.
     :param gui_callback: A function called every time the state changes.
     :param video_name: The name of the file.
+    :param size: The resolution of the video.
     """
     logger = classes.export.GuiLogger(gui_callback)
     logger.log({"status": "download-audio"})
     try:
         backend.log.export_start(document.id)
-        export_video_wrapped(document, out_dir, video_name, logger=logger)
+        export_video_wrapped(document, out_dir, video_name, logger=logger, video_size=SIZES[size])
         backend.log.export_end(document.id)
     except Exception as exc:
         backend.log.export_err(document.id, str(exc))
@@ -80,13 +87,19 @@ def export_video(document: classes.video.Document, out_dir: str, gui_callback=No
         raise exc
 
 
-def export_video_wrapped(document: classes.video.Document, out_dir: str, video_name: str, logger=None):
+def export_video_wrapped(
+        document: classes.video.Document,
+        out_dir: str,
+        video_name: str,
+        logger=None,
+        video_size=SIZES["720"]):
     """
     Pieces together the video with all the info found in the document's directory.
     :param document: The document to export.
     :param out_dir: A path pointing to a new directory.
     :param video_name: The name of the videofile.
     :param logger: An objects that forwards status updates to the GUI.
+    :param video_size: The resolution of the video.
     """
     document.load()
     cache_dir = document.get_cache_dir()
@@ -113,9 +126,9 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
         background = ImageClip(backend.editor.DATA_PATH + "/assets/background.png"). \
             set_position(("center", "center"))
     if background.w/background.h <= 16/9:
-        background = background.resize(width=VIDEO_SIZE[0])
+        background = background.resize(width=video_size[0])
     else:
-        background = background.resize(height=VIDEO_SIZE[1])
+        background = background.resize(height=video_size[1])
 
     t = intro.duration
     clips = [intro, background.set_start(t).fadein(VIDEO_FADE_TIME)]
@@ -154,7 +167,7 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
 
             audio_clip = CompositeAudioClip(audios). \
                 set_duration(t)
-            video = CompositeVideoClip(clips, size=VIDEO_SIZE). \
+            video = CompositeVideoClip(clips, size=video_size). \
                 on_color(color=WHITE, col_opacity=1). \
                 set_audio(audio_clip). \
                 set_duration(t)
@@ -185,7 +198,8 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
                     scenes_left += 1
 
             scene_clips, part_subtitles, t = get_scene_clips(
-                t, s, is_last=scenes_left == 0, complete_video_t=sum(temp_video_durations)
+                t, s, is_last=scenes_left == 0, complete_video_t=sum(temp_video_durations),
+                video_size=video_size
             )
             subtitles += part_subtitles
             for c in scene_clips:
@@ -218,7 +232,7 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
 
     audio_clip = CompositeAudioClip(audios). \
         set_duration(t)
-    video = CompositeVideoClip(clips, size=VIDEO_SIZE). \
+    video = CompositeVideoClip(clips, size=video_size). \
         on_color(color=WHITE, col_opacity=1). \
         set_audio(audio_clip). \
         set_duration(t)
@@ -255,7 +269,7 @@ def export_video_wrapped(document: classes.video.Document, out_dir: str, video_n
         os.remove(tmp_vid)
 
 
-def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
+def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None, video_size=SIZES["720"]):
     """
     Creates audio and image clips with the given scene
     :param t: The time the scene will start at.
@@ -263,6 +277,7 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
     :param is_last: Whether it's the last scene. If it is, it fades out to black.
     :param complete_video_t: The overall time the clip starts at. Useful if the video
                                   is being split for memory issues.
+    :param video_size: The resolution of the video.
     :return: [Clip[], Subtitle[], int]: A list of clips, subtitle and the time at which the scene ends.
     """
     cache_dir = scene.document.get_cache_dir()
@@ -285,11 +300,11 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
     if media_path[-4:] in [".png", "jpeg", ".jpg", ".gif"]:
         media_w, media_h = PIL.Image.open(media_path).size
         if media_w/media_h <= 16/9:
-            new_h = VIDEO_SIZE[1]*0.9
+            new_h = video_size[1]*0.9
             media_raw = ImageClip(media_path). \
                 resize(height=new_h)
         else:
-            new_w = VIDEO_SIZE[0]*0.9
+            new_w = video_size[0]*0.9
             media_raw = ImageClip(media_path). \
                 resize(width=new_w)
     elif media_path[-4:] in [".mp4"]:
@@ -297,10 +312,10 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
         media_w = media_raw.w
         media_h = media_raw.h
         if media_w/media_h <= 16/9:
-            new_h = VIDEO_SIZE[1]*0.9
+            new_h = video_size[1]*0.9
             media_raw = media_raw.resize(height=new_h)
         else:
-            new_w = VIDEO_SIZE[0]*0.9
+            new_w = video_size[0]*0.9
             media_raw = media_raw.resize(width=new_w)
     else:
         return [[], [], 0]
@@ -324,17 +339,18 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None):
             wait_length += part_audio.duration
 
         if not part.is_crop_empty():
-            media_clip = get_media_clips(t, media_raw, part.crop, is_last=is_last, has_caption=has_caption)
+            media_clip = get_media_clips(t, media_raw, part.crop, is_last=is_last, has_caption=has_caption,
+                                         video_size=video_size)
             clips.append(media_clip)
 
             if isinstance(media_raw, VideoFileClip):
                 wait_length += media_raw.duration
 
         if "reaction" in part.fields:
-            reactions.append(get_reaction_clip(t, part.fields['reaction']))
+            reactions.append(get_reaction_clip(t, part.fields['reaction'], video_size=video_size))
 
         if "written" in part.fields:
-            captions += get_caption_clips(t, part.fields["written"])
+            captions += get_caption_clips(t, part.fields["written"], video_size=video_size)
 
         t = wait_length
 
@@ -398,7 +414,7 @@ def download_audios_for(scene: classes.video.Scene, download_dir: str):
                 faud.close()
 
 
-def get_media_clips(t, media, crop_data, is_last=False, has_caption=False):
+def get_media_clips(t, media, crop_data, is_last=False, has_caption=False, video_size=SIZES["720"]):
     x = int(media.w*crop_data["x"]/100)
     y = int(media.h*crop_data["y"]/100)
     w = int(media.w*crop_data["w"]/100)
@@ -408,43 +424,43 @@ def get_media_clips(t, media, crop_data, is_last=False, has_caption=False):
     if is_last:
         part_media = CompositeVideoClip([part_media])
 
-    align_y = (VIDEO_SIZE[1] - media.h) / 2 + y
+    align_y = (video_size[1] - media.h) / 2 + y
     if has_caption:
         align_y = 0
 
     part_media = part_media. \
         set_position((
-            (VIDEO_SIZE[0] - media.w) / 2 + x,
+            (video_size[0] - media.w) / 2 + x,
             align_y
         )). \
         set_start(t)
     return part_media
 
 
-def get_caption_clips(t, text):
+def get_caption_clips(t, text, video_size=SIZES["720"]):
     part_text = TextClip(text, font="Roboto", fontsize=CAPTION_TEXT_SIZE,
                          color=CAPTION_TEXT_COLOR, align="center", method="caption",
-                         size=(int(VIDEO_SIZE[0]*0.9), None))
+                         size=(int(video_size[0]*0.9), None))
     part_text = part_text \
         .set_position((
-            (VIDEO_SIZE[0] - part_text.w) / 2,
-            VIDEO_SIZE[1] - part_text.h - CAPTION_MARGIN_Y
+            (video_size[0] - part_text.w) / 2,
+            video_size[1] - part_text.h - CAPTION_MARGIN_Y
         )) \
         .set_start(t)
     backdrop_height = part_text.h + CAPTION_MARGIN_Y*2
-    part_background = create_rectangle(VIDEO_SIZE[0], backdrop_height, color=CAPTION_BG_COLOR) \
-        .set_position((0, VIDEO_SIZE[1] - backdrop_height)) \
+    part_background = create_rectangle(video_size[0], backdrop_height, color=CAPTION_BG_COLOR) \
+        .set_position((0, video_size[1] - backdrop_height)) \
         .set_start(t)
     return [part_background, part_text]
 
 
-def get_reaction_clip(t, reaction):
+def get_reaction_clip(t, reaction, video_size=SIZES["720"]):
     reaction_path = os.path.join(REACTIONS_PATH, f"{reaction}.png")
-    part_react = ImageClip(reaction_path).resize(height=int(0.5*VIDEO_SIZE[1]))
+    part_react = ImageClip(reaction_path).resize(height=int(0.5*video_size[1]))
     part_react = part_react \
         .set_position((
-            VIDEO_SIZE[0] - part_react.w,
-            VIDEO_SIZE[1] - part_react.h
+            video_size[0] - part_react.w,
+            video_size[1] - part_react.h
         )) \
         .set_start(t)
     return part_react
