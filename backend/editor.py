@@ -1,19 +1,16 @@
 import os
-import csv
 import shutil
-import base64
 import urllib3
 import backend.requests
 import backend.utils
-from backend.paths import DATA_PATH, DOWNLOAD_PATH, LOG_PATH, p, get_project_dir, get_scene_dir
+import backend.image
+from backend.paths import DATA_PATH, DOWNLOAD_PATH, p
 import time
-import traceback
 from PIL import Image
 import pytesseract
 import re
-from random import randint, choice
+from random import choice
 from classes.video import Document, Scene, Transition, Soundtrack, Part
-from typing import List
 pytesseract.pytesseract.tesseract_cmd = r"/usr/local/bin/tesseract"
 
 
@@ -403,11 +400,11 @@ def make_media_video(target: str, bgm_dir: str, max_duration=10*60):
     return document
 
 
-def make_askreddit_video(target, bgm_dir=None, max_duration=10*60):
+def make_askreddit_video(target, bgm_dir=None, max_duration=10*60, comment_depth=5):
     name = f"{target}-auto"
     document = Document.new(name)
 
-    posts = backend.requests.post_comments(target)
+    posts = backend.requests.post_comments(target, max_comments_per_tree=comment_depth)
     for i in range(len(posts)):
         path = posts[i].path
         if os.path.exists(path+".txt"):

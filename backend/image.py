@@ -33,7 +33,9 @@ video_voices_config = None
 
 def init():
     global FONT
-    FONT = ImageFont.truetype(backend.paths.DATA_PATH + "/assets/thumbnail/thumbnail-font-bold.ttf", 100)
+    font_path = backend.paths.DATA_PATH + "/assets/thumbnail/thumbnail-font-bold.ttf"
+    if os.path.exists(font_path):
+        FONT = ImageFont.truetype(font_path, 100)
 
 
 def make_thumbnail(text, image_path, save_path, max_chars_per_line=20):

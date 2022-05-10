@@ -110,11 +110,13 @@ def subreddit_image_posts(sub, only_selfposts=False, max_scenes=100000):
         return []
 
 
-def post_comments(thread_id):
+def post_comments(thread_id, max_comments_per_tree=5):
     """
     Fetches a subreddit's top submissions.
     :param thread_id: str: The ID of the thread.
     :return: ImageLink[]: A list of URLs leading to the images.
+    :param max_comments_per_tree: int: The max comments every tree can have.
+                                        Includes branches, not only leaves..
     """
     reddit = get_reddit_instance()
 
@@ -125,7 +127,7 @@ def post_comments(thread_id):
         if path:
             ret.append(ImageLink(path, is_url=False))
 
-        comments = get_simplified_comments(submission.comments)
+        comments = get_simplified_comments(submission.comments, max_comments_per_tree=max_comments_per_tree)
         for cmt in comments:
             path = backend.image.reddit_comment_to_image(cmt)
             if path:

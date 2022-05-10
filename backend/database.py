@@ -8,11 +8,13 @@ conn = psycopg2.connect(
 conn.set_session(autocommit=True)
 
 
-def get_videos(with_thumbnail=False, created=False):
+def get_videos(with_thumbnail=False, created=False, shorts=False):
     """
     Gets videos that haven't been exported. The ones that have a thumbnail are
     put at the top.
-    :with_thumbnail: Excludes videos that don't have a thumbnail, if True
+    :param with_thumbnail: Excludes videos that don't have a thumbnail, if True
+    :param created: Excludes videos that don't have a document id, if True
+    :param shorts: if True gets shorts, if False gets everything BUT shorts.
     """
     cur = conn.cursor()
     cur.execute(f"""
@@ -22,6 +24,7 @@ def get_videos(with_thumbnail=False, created=False):
         WHERE NOT exported
         {"AND thumbnail IS NOT NULL" if with_thumbnail else ""}
         {"AND document_id IS NOT NULL" if created else ""}
+        AND {"NOT" if not shorts else ""} is_short
         ORDER BY thumbnail ASC
     """)
     rows = cur.fetchall()
@@ -54,7 +57,7 @@ def confirm_video_upload(thread, url):
 def get_video(thread):
     cur = conn.cursor()
     cur.execute("""
-            SELECT vid.thread, vid.title, vid.thumbnail, thr.title, vid.url
+            SELECT vid.thread, vid.title, vid.thumbnail, thr.title, vid.url, vid.is_short
             FROM rdt_videos as vid
                 JOIN rdt_threads as thr ON vid.thread = thr.id
             WHERE vid.thread=%s
@@ -63,7 +66,8 @@ def get_video(thread):
     if not row:
         print(f"None for {thread}!")
         return
-    row = {"thread": row[0], "title": row[1], "thumbnail": row[2], "thread_title": row[3], "url": row[4]}
+    row = {"thread": row[0], "title": row[1], "thumbnail": row[2], "thread_title": row[3], "url": row[4],
+           "is_short": row[5]}
     return row
 
 

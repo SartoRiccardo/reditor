@@ -153,8 +153,11 @@ def add_captions(youtube, uploaded_id, captions):
     ).execute()
 
 
-def upload(video, thumbnail, captions):
+def upload(video, thumbnail, captions, is_short=False):
     youtube = get_authenticated_service()
+    if is_short:
+        video['title'] += "#shorts"
+        video['description'] += "\n#shorts"
     try:
         uploaded_id = initialize_upload(youtube, video)
     except HttpError as e:

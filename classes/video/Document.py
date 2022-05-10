@@ -25,6 +25,8 @@ class Document:
 
         self.name = name
         self.script = []
+        self.has_intro = False
+        self.has_outro = False
 
         if load:
             self.load()
@@ -108,7 +110,7 @@ class Document:
         return soundtrack
 
     def truncate_duration(self, max_duration=10*60):
-        self.get_duration()  # Downloads audios and loads the duration
+        self.get_duration(rate_limit_max_time=max_duration)  # Downloads audios and loads the duration
 
         total_duration = 0
         for i in range(len(self.script)):
@@ -244,6 +246,10 @@ class Document:
                     self.script.append(classes.video.Soundtrack(self, soundtrack_id, ";".join(parts[2:])))
                 elif command == "transition":
                     self.script.append(classes.video.Transition(self))
+                elif command == "intro":
+                    self.has_intro = True
+                elif command == "outro":
+                    self.has_outro = True
             else:
                 scenes += 1
                 new_scene = classes.video.Scene(self, int(ln))

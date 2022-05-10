@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import traceback
 from typing import TYPE_CHECKING
 import imageio
 if TYPE_CHECKING:
@@ -73,6 +75,7 @@ def export_video_deco(export_func):
             export_func(document, *args, logger=logger, **kwargs)
             backend.log.export_end(document.id)
         except Exception as exc:
+            print(traceback.format_exc())
             backend.log.export_err(document.id, str(exc))
             logger.log({"error": True, "error_msg": str(exc)})
             raise exc
@@ -109,8 +112,6 @@ def export_video(
     chunk_logger = classes.export.CustomProgressBar(gui_callback=logger.log)
 
     transition = VideoFileClip(backend.editor.DATA_PATH + "/assets/transition.mp4")
-    intro = VideoFileClip(backend.editor.DATA_PATH + "/assets/intro.mp4")
-    outro = VideoFileClip(backend.editor.DATA_PATH + "/assets/outro.mp4")
 
     if os.path.exists(backend.editor.DATA_PATH + "/assets/background.mp4"):
         background = VideoFileClip(backend.editor.DATA_PATH + "/assets/background.mp4"). \
@@ -124,10 +125,18 @@ def export_video(
     else:
         background = background.resize(height=video_size[1])
 
-    t = intro.duration
-    clips = [intro, background.set_start(t).fadein(VIDEO_FADE_TIME)]
-    t += VIDEO_FADE_TIME
-    audios = [intro.audio]
+    clips = []
+    audios = []
+    t = 0
+    if document.has_intro:
+        intro = VideoFileClip(backend.editor.DATA_PATH + "/assets/intro.mp4")
+        clips.append(intro)
+        audios.append(intro.audio)
+        t += intro.duration
+        clips.append(background.set_start(t).fadein(VIDEO_FADE_TIME))
+        t += VIDEO_FADE_TIME
+    else:
+        clips.append(background.set_start(t))
     subtitles = []
     part_soundtrack = None
     temp_video_paths = []
@@ -143,6 +152,7 @@ def export_video(
                 volumex(0.1)
 
         elif isinstance(s, classes.video.Transition):
+            # Splits the file at every transition to avoid memory issues
             has_transitioned_once = True
             if part_soundtrack:
                 part_start = part_soundtrack.start
@@ -192,7 +202,8 @@ def export_video(
                     scenes_left += 1
 
             scene_clips, part_subtitles, t = get_scene_clips(
-                t, s, is_last=scenes_left == 0, complete_video_t=sum(temp_video_durations),
+                t, s, fade_out=(scenes_left == 0 and document.has_outro),
+                complete_video_t=sum(temp_video_durations),
                 video_size=video_size
             )
             subtitles += part_subtitles
@@ -204,10 +215,11 @@ def export_video(
 
         gc.collect()
 
-    bg_i = 0 if has_transitioned_once else 1
-    clips[bg_i] = clips[bg_i]. \
-        set_end(t). \
-        fadeout(VIDEO_FADE_TIME)
+    bg_idx = 0 if has_transitioned_once else 1
+    clips[bg_idx] = clips[bg_idx]. \
+        set_end(t)
+    if document.has_outro:
+        clips[bg_idx] = clips[bg_idx].fadeout(VIDEO_FADE_TIME)
 
     if part_soundtrack:
         part_start = part_soundtrack.start
@@ -219,9 +231,11 @@ def export_video(
             audio_fadeout(SOUNDTRACK_FADE_TIME)
         audios.append(part_soundtrack)
 
-    clips.append(outro.set_start(t))
-    audios.append(outro.audio.set_start(t))
-    t += outro.duration
+    if document.has_outro:
+        outro = VideoFileClip(backend.editor.DATA_PATH + "/assets/outro.mp4")
+        clips.append(outro.set_start(t))
+        audios.append(outro.audio.set_start(t))
+        t += outro.duration
     temp_video_durations.append(t)
 
     audio_clip = CompositeAudioClip(audios). \
@@ -243,10 +257,7 @@ def export_video(
         a.close()
     audio_clip.close()
     video.close()
-
     background.close()
-    intro.close()
-    outro.close()
 
     fsub = open(out_dir+"/subtitles.srt", "w")
     for i in range(len(subtitles)):
@@ -263,12 +274,18 @@ def export_video(
         os.remove(tmp_vid)
 
 
-def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None, video_size=SIZES["720"]):
+def get_scene_clips(
+        t: int,
+        scene,
+        fade_out=False,
+        complete_video_t=None,
+        video_size=SIZES["720"]
+    ):
     """
     Creates audio and image clips with the given scene
     :param t: The time the scene will start at.
     :param scene: The scene to convert to clips.
-    :param is_last: Whether it's the last scene. If it is, it fades out to black.
+    :param fade_out: If true, fade out to black at the end.
     :param complete_video_t: The overall time the clip starts at. Useful if the video
                                   is being split for memory issues.
     :param video_size: The resolution of the video.
@@ -333,7 +350,7 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None, video_s
             wait_length += part_audio.duration
 
         if not part.is_crop_empty():
-            media_clip = get_media_clips(t, media_raw, part.crop, is_last=is_last, has_caption=has_caption,
+            media_clip = get_media_clips(t, media_raw, part.crop, fade_out=fade_out, has_caption=has_caption,
                                          video_size=video_size)
             clips.append(media_clip)
 
@@ -349,7 +366,7 @@ def get_scene_clips(t: int, scene, is_last=False, complete_video_t=None, video_s
         t = wait_length
 
     clips += captions + reactions
-    if is_last:
+    if fade_out:
         clips = [c.set_end(t+VIDEO_FADE_TIME).fadeout(VIDEO_FADE_TIME) for c in clips]
         t += VIDEO_FADE_TIME
     else:
@@ -408,14 +425,14 @@ def download_audios_for(scene: classes.video.Scene, download_dir: str):
                 faud.close()
 
 
-def get_media_clips(t, media, crop_data, is_last=False, has_caption=False, video_size=SIZES["720"]):
+def get_media_clips(t, media, crop_data, fade_out=False, has_caption=False, video_size=SIZES["720"]):
     x = int(media.w*crop_data["x"]/100)
     y = int(media.h*crop_data["y"]/100)
     w = int(media.w*crop_data["w"]/100)
     h = int(media.h*crop_data["h"]/100)
 
     part_media = media.crop(x1=x, y1=y, width=w, height=h)
-    if is_last:
+    if fade_out:
         part_media = CompositeVideoClip([part_media])
 
     align_y = (video_size[1] - media.h) / 2 + y
