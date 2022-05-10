@@ -61,46 +61,40 @@ CAPTION_MARGIN_Y = 10
 CAPTION_TEXT_SIZE = 42
 
 
+def export_video_deco(export_func):
+    """
+    Encloses everything in a try-except function without messing up the code.
+    """
+    def inner(document, *args, gui_callback=None, **kwargs):
+        logger = classes.export.GuiLogger(gui_callback)
+        logger.log({"status": "download-audio"})
+        try:
+            backend.log.export_start(document.id)
+            export_func(document, *args, logger=logger, **kwargs)
+            backend.log.export_end(document.id)
+        except Exception as exc:
+            backend.log.export_err(document.id, str(exc))
+            logger.log({"error": True, "error_msg": str(exc)})
+            raise exc
+    return inner
+
+
+@export_video_deco
 def export_video(
         document: classes.video.Document,
         out_dir: str,
-        gui_callback=None,
-        video_name="video.mp4",
-        size="720-p"):
-    """
-    A wrapper for an easier time trying and excepting.
-    :param document: The document to export.
-    :param out_dir: A path pointing to a new directory.
-    :param gui_callback: A function called every time the state changes.
-    :param video_name: The name of the file.
-    :param size: The resolution of the video.
-    """
-    logger = classes.export.GuiLogger(gui_callback)
-    logger.log({"status": "download-audio"})
-    try:
-        backend.log.export_start(document.id)
-        export_video_wrapped(document, out_dir, video_name, logger=logger, video_size=SIZES[size])
-        backend.log.export_end(document.id)
-    except Exception as exc:
-        backend.log.export_err(document.id, str(exc))
-        logger.log({"error": True, "error_msg": str(exc)})
-        raise exc
-
-
-def export_video_wrapped(
-        document: classes.video.Document,
-        out_dir: str,
-        video_name: str,
+        video_name: str = "video.mp4",
         logger=None,
-        video_size=SIZES["720"]):
+        size="720"):
     """
     Pieces together the video with all the info found in the document's directory.
     :param document: The document to export.
     :param out_dir: A path pointing to a new directory.
     :param video_name: The name of the videofile.
     :param logger: An objects that forwards status updates to the GUI.
-    :param video_size: The resolution of the video.
+    :param size: The resolution of the video.
     """
+    video_size = SIZES[size]
     document.load()
     cache_dir = document.get_cache_dir()
 
