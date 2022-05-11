@@ -71,9 +71,9 @@ def get_video(thread):
     return row
 
 
-def get_complete_videos():
+def get_complete_videos(shorts=False):
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(f"""
         SELECT thread, vid.title, vid.thumbnail, thr.title, vid.url
         FROM rdt_videos as vid
             JOIN rdt_threads as thr ON vid.thread = thr.id
@@ -81,6 +81,7 @@ def get_complete_videos():
             AND vid.thumbnail IS NOT NULL
             AND vid.title IS NOT NULL
             AND vid.url IS NULL
+            AND {"NOT" if not shorts else ""} vid.is_short
     """)
     rows = cur.fetchall()
     rows = [

@@ -9,32 +9,38 @@ import os
 import gc
 from backend.paths import DOWNLOAD_PATH
 from classes.video.Document import Document
-import requests
 from modules.logger import Logger
 import traceback
 
 
 class Exporter(threading.Thread):
     EXPORT_EVERY = 60*60*12
+    SHORTS_EXPORT_EVERY = 60*60*12
+    MAX_EXPORTED_BACKLOG = 1
+    SHORTS_MAX_EXPORTED_BACKLOG = 3
 
     def __init__(self):
         super().__init__()
         self.last_loop = datetime.now() - timedelta(seconds=Exporter.EXPORT_EVERY*10)
+        self.shorts_last_loop = datetime.now() - timedelta(seconds=Exporter.SHORTS_EXPORT_EVERY*10)
         self.active = True
         self.error_exporting = False
 
     def run(self):
         while self.active:
             try:
-                self.task()
+                self.task_export_videos()
+                self.task_export_shorts()
+                time.sleep(10)
             except:
-                Logger.log(f"```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
+                Logger.log(f"`Exporter` thread:\n```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
 
-    def task(self):
+    def task_export_videos(self):
         self.error_exporting = False
         while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.EXPORT_EVERY) or
-                len(Exporter.get_video_backlog()) > 3) and self.active:
-            time.sleep(10)
+                len(Exporter.get_video_backlog()) > Exporter.MAX_EXPORTED_BACKLOG) and self.active:
+            return
+
         if not self.active:
             return
         self.last_loop = datetime.now()
@@ -44,23 +50,50 @@ class Exporter(threading.Thread):
             return
 
         chosen = Exporter.choose_video(videos)
-        title = chosen["title"] if chosen["title"] else chosen["thread_title"]
+        self.export_video(chosen)
 
-        Logger.log(f"Adding soundtracks for **{title}**", Logger.DEBUG)
+    def task_export_shorts(self):
+        while (datetime.now() < self.shorts_last_loop + timedelta(seconds=Exporter.SHORTS_EXPORT_EVERY) or
+                len(Exporter.get_shorts_backlog()) > Exporter.SHORTS_MAX_EXPORTED_BACKLOG) and self.active:
+            return
+
+        if not self.active:
+            return
+        self.last_loop = datetime.now()
+
+        shorts = backend.database.get_videos(created=True, shorts=True)
+        if len(shorts) == 0:
+            return
+
+        chosen = Exporter.choose_video(shorts)
+        self.export_video(chosen, short=True)
+
+    def export_video(self, video, short=False):
+        short_str = "*__#short__*" if short else ""
+
+        title = video["title"] if video["title"] else video["thread_title"]
+        Logger.log(f"Adding soundtracks for **{title}** {short_str}", Logger.DEBUG)
         bgm_dir = backend.database.config("rdt_bgmdir")
-        document = Document(chosen["document_id"])
+        document = Document(video["document_id"])
         document.add_soundtracks(bgm_dir)
 
         Logger.log(f"Exporting **{title}**", Logger.INFO)
-        if not chosen["title"]:
-            Logger.log(f"No title or thumbnail for **{chosen['thread_title']}**", Logger.WARN)
+        if not video["title"]:
+            Logger.log(f"No title or thumbnail for **{video['thread_title']}** {short_str}", Logger.WARN)
 
         self.notify_bot_export_start(document)
-        document.export(f"{DOWNLOAD_PATH}/{document.name}-export", log_callback=self.check_errors)
+
+        if not os.path.exists(DOWNLOAD_PATH):
+            os.mkdir(DOWNLOAD_PATH)
+        export_path = f"{DOWNLOAD_PATH}/{document.name}-export"
+        if short:
+            export_path = f"{DOWNLOAD_PATH}/shorts/{document.name}-export"
+        document.export(export_path, log_callback=self.check_errors)
+
         if not self.error_exporting:
-            backend.database.confirm_export(chosen["thread"])
+            backend.database.confirm_export(video["thread"])
         document.delete()
-        Logger.log(f"Exported **{title}**", Logger.SUCCESS)
+        Logger.log(f"Exported **{title}** {short_str}", Logger.SUCCESS)
         gc.collect()
 
     def stop(self):
@@ -80,6 +113,22 @@ class Exporter(threading.Thread):
         _, dirs, __ = next(os.walk(DOWNLOAD_PATH))
         for d in dirs:
             _, __, files = next(os.walk(f"{DOWNLOAD_PATH}/{d}"))
+            if len(files) == 0:
+                os.rmdir(f"{DOWNLOAD_PATH}/{d}")
+            else:
+                ret.append(d.split("-")[0])
+
+        return ret
+
+    @staticmethod
+    def get_shorts_backlog():
+        ret = []
+        if not os.path.exists(f"{DOWNLOAD_PATH}/shorts"):
+            return ret
+
+        _p, dirs, _f = next(os.walk(f"{DOWNLOAD_PATH}/shorts"))
+        for d in dirs:
+            _p, _d, files = next(os.walk(f"{DOWNLOAD_PATH}/{d}"))
             if len(files) == 0:
                 os.rmdir(f"{DOWNLOAD_PATH}/{d}")
             else:

@@ -21,6 +21,7 @@ class Creator(threading.Thread):
         while self.active:
             try:
                 self.task()
+                time.sleep(10)
             except:
                 Logger.log(f"```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
 
@@ -35,10 +36,11 @@ class Creator(threading.Thread):
             if vid["document_id"]:
                 continue
 
-            # Create all videos with a thumbnail. If there are none, create only the first,
-            # but only if there are no videos currently created.
-            if not vid["thumbnail"] and len(backend.editor.get_files()) > 0:
-                break
+            # Create all videos with a thumbnail.
+            # If there is at least one video exported or created, don't create anything.
+            if not vid["thumbnail"] and \
+                    (len(backend.editor.get_files()) > 0 or len(Exporter.get_video_backlog()) > 0):
+                continue
 
             title = vid["title"] if vid["title"] else vid["thread_title"]
             Logger.log(f"Creating **{title}**", Logger.INFO)
@@ -48,7 +50,15 @@ class Creator(threading.Thread):
 
             self.notify_bot_creation(vid["thread"], document)
 
-        time.sleep(10)
+        shorts = backend.database.get_videos(with_thumbnail=True, shorts=True)
+        for short in shorts:
+            if short["document_id"]:
+                continue
+            title = short["title"]
+            Logger.log(f"Creating **{title}** *__#short__*", Logger.INFO)
+            document = backend.editor.make_askreddit_video(short["thread"], max_duration=50, comment_depth=1)
+            backend.database.confirm_video_creation(short["thread"], document.id)
+            Logger.log(f"Created #short **{title}** *__#short__*", Logger.SUCCESS)
 
     @staticmethod
     def notify_bot_creation(thread_id, document):
