@@ -431,3 +431,40 @@ class Document:
             if isinstance(scene, classes.video.Scene):
                 scenes.append(scene)
         return scenes
+
+    def add_intro(self):
+        self._raw_change_part("[intro]", place="first")
+        self.has_intro = True
+
+    def delete_intro(self):
+        self._raw_change_part("[intro]", action="remove")
+        self.has_intro = False
+
+    def add_outro(self):
+        self._raw_change_part("[outro]", place="last")
+        self.has_outro = True
+
+    def delete_outro(self):
+        self._raw_change_part("[outro]", action="remove")
+        self.has_outro = False
+
+    def _raw_change_part(self, part, place="first", action="add"):
+        script_path = self.path + "/script.txt"
+        fscript = open(script_path)
+        lines = []
+        for ln in fscript:
+            if part in ln:
+                continue
+            lines.append(ln)
+        fscript.close()
+
+        fscript = open(script_path, "w")
+        if place == "first" and action == "add":
+            fscript.write(f"{part}\n")
+        for ln in lines:
+            fscript.write(ln)
+        if place == "last" and action == "add":
+            fscript.write(f"{part}\n")
+        fscript.close()
+
+        self.has_intro = True

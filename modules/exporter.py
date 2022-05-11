@@ -88,7 +88,8 @@ class Exporter(threading.Thread):
         export_path = f"{DOWNLOAD_PATH}/{document.name}-export"
         if short:
             export_path = f"{DOWNLOAD_PATH}/shorts/{document.name}-export"
-        document.export(export_path, log_callback=self.check_errors)
+        document.export(export_path, log_callback=self.check_errors,
+                        size=("720" if not short else "1080-v"))
 
         if not self.error_exporting:
             backend.database.confirm_export(video["thread"])
