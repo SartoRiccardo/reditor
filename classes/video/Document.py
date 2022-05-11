@@ -94,6 +94,7 @@ class Document:
             print("\n"*2, exc, "\n"*2)
             return None
 
+        print(f"{duration=}, {rate_limit_max_time=}")
         return duration
 
     def set_song(self, soundtrack_id: int, name, payload, is_path=False):
@@ -283,7 +284,7 @@ class Document:
         if os.path.exists(self.path):
             shutil.rmtree(self.path)
 
-    def export(self, export_dir, log_callback=None):
+    def export(self, export_dir, log_callback=None, size="720"):
         self.load()
         if os.path.exists(export_dir):
             shutil.rmtree(export_dir)
@@ -293,7 +294,8 @@ class Document:
             backend.video.export_video(
                 self, export_dir,
                 gui_callback=log_callback if log_callback else lambda x: x,
-                video_name=f"{self.name}.mp4"
+                video_name=f"{self.name}.mp4",
+                size=size
             )
         except Exception:
             fout = open("./error.txt", "w")

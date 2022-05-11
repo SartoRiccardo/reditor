@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import traceback
 from typing import TYPE_CHECKING
 import imageio
@@ -120,7 +121,7 @@ def export_video(
     else:
         background = ImageClip(backend.editor.DATA_PATH + "/assets/background.png"). \
             set_position(("center", "center"))
-    if background.w/background.h <= 16/9:
+    if background.w/background.h <= video_size[0]/video_size[1]:
         background = background.resize(width=video_size[0])
     else:
         background = background.resize(height=video_size[1])
@@ -134,9 +135,11 @@ def export_video(
         audios.append(intro.audio)
         t += intro.duration
         clips.append(background.set_start(t).fadein(VIDEO_FADE_TIME))
+        background_idx = 1
         t += VIDEO_FADE_TIME
     else:
         clips.append(background.set_start(t))
+        background_idx = 0
     subtitles = []
     part_soundtrack = None
     temp_video_paths = []
@@ -189,6 +192,7 @@ def export_video(
             for c in clips:
                 c.close()
             clips = [background]
+            background_idx = 0
             for a in audios:
                 a.close()
             audios = []
@@ -215,11 +219,10 @@ def export_video(
 
         gc.collect()
 
-    bg_idx = 0 if has_transitioned_once else 1
-    clips[bg_idx] = clips[bg_idx]. \
+    clips[background_idx] = clips[background_idx]. \
         set_end(t)
     if document.has_outro:
-        clips[bg_idx] = clips[bg_idx].fadeout(VIDEO_FADE_TIME)
+        clips[background_idx] = clips[background_idx].fadeout(VIDEO_FADE_TIME)
 
     if part_soundtrack:
         part_start = part_soundtrack.start
@@ -268,10 +271,13 @@ def export_video(
             fsub.write("\n")
     fsub.close()
 
-    chunk_logger = classes.export.CustomProgressBar(gui_callback=logger.log, fps=FPS)
-    composite_videos(temp_video_paths, f"{out_dir}/{video_name}", chunk_logger)
-    for tmp_vid in temp_video_paths:
-        os.remove(tmp_vid)
+    if len(temp_video_paths) > 1:
+        chunk_logger = classes.export.CustomProgressBar(gui_callback=logger.log, fps=FPS)
+        composite_videos(temp_video_paths, f"{out_dir}/{video_name}", chunk_logger)
+        for tmp_vid in temp_video_paths:
+            os.remove(tmp_vid)
+    elif len(temp_video_paths) == 1:
+        shutil.move(temp_video_paths[0], f"{out_dir}/{video_name}")
 
 
 def get_scene_clips(
@@ -310,7 +316,7 @@ def get_scene_clips(
     media_path = scene.get_media_path()
     if media_path[-4:] in [".png", "jpeg", ".jpg", ".gif"]:
         media_w, media_h = PIL.Image.open(media_path).size
-        if media_w/media_h <= 16/9:
+        if media_w/media_h <= video_size[0]/video_size[1]:
             new_h = video_size[1]*0.9
             media_raw = ImageClip(media_path). \
                 resize(height=new_h)
@@ -322,7 +328,7 @@ def get_scene_clips(
         media_raw = VideoFileClip(media_path)
         media_w = media_raw.w
         media_h = media_raw.h
-        if media_w/media_h <= 16/9:
+        if media_w/media_h <= video_size[0]/video_size[1]:
             new_h = video_size[1]*0.9
             media_raw = media_raw.resize(height=new_h)
         else:
@@ -420,7 +426,7 @@ def download_audios_for(scene: classes.video.Scene, download_dir: str):
                     except:
                         tries -= 1
                 if not audio:
-                    raise Exception(f"Could not download audio {scene['number']:05d}-{i:05d}")
+                    raise Exception(f"Could not download audio {scene.id:05d}-{i:05d}")
                 faud.write(audio)
                 faud.close()
 
