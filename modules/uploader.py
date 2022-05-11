@@ -98,7 +98,8 @@ class Uploader(threading.Thread):
 
         title_safe = self.turn_to_path(video_data["title"])
         video_path = f"{video['path']}/{title_safe}.mp4"
-        os.rename(f"{video['path']}/{video['id']}-auto.mp4", video_path)
+        if not os.path.exists(video_path):
+            os.rename(f"{video['path']}/{video['id']}-auto.mp4", video_path)
 
         youtube_video = {
             "title": video_data["title"] + (' #short' if short else ''),
