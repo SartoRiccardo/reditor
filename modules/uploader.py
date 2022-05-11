@@ -51,8 +51,8 @@ class Uploader(threading.Thread):
                 self.task()
                 self.task_shorts()
                 time.sleep(10)
-            except Exception as exc:
-                print(exc)
+            except:
+                print(traceback.format_exc())
 
     def task(self):
         while datetime.now() < self.last_loop + timedelta(days=Uploader.UPLOAD_EVERY_DAYS) and \
@@ -100,7 +100,7 @@ class Uploader(threading.Thread):
         video_path = f"{video['path']}/{title_safe}.mp4"
         os.rename(f"{video['path']}/{video['id']}-auto.mp4", video_path)
 
-        video = {
+        youtube_video = {
             "title": video_data["title"] + (' #short' if short else ''),
             "description": f"{video_data['thread_title']}\n"
                            "We ask this question to r/AskReddit, "
@@ -119,7 +119,7 @@ class Uploader(threading.Thread):
         download_image(video_data["thumbnail"], f"{video['path']}/thumbnail.png")
         video_id = None
         try:
-            video_id = upload(video, f"{video['path']}/thumbnail.png", f"{video['path']}/subtitles.srt")
+            video_id = upload(youtube_video, f"{video['path']}/thumbnail.png", f"{video['path']}/subtitles.srt")
             url = f"https://www.youtube.com/watch?v={video_id}"
 
             backend.database.confirm_video_upload(video["id"], url)
