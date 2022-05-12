@@ -27,13 +27,16 @@ class Exporter(threading.Thread):
         self.error_exporting = False
 
     def run(self):
+        sleep_time = 10
         while self.active:
             try:
                 self.task_export_videos()
                 self.task_export_shorts()
-                time.sleep(10)
+                time.sleep(sleep_time)
+                sleep_time = max(int(sleep_time/2), 10)
             except:
                 Logger.log(f"`Exporter` thread:\n```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
+                sleep_time *= 1.5
 
     def task_export_videos(self):
         self.error_exporting = False
@@ -88,6 +91,8 @@ class Exporter(threading.Thread):
         export_path = f"{DOWNLOAD_PATH}/{document.name}-export"
         if short:
             export_path = f"{DOWNLOAD_PATH}/shorts/{document.name}-export"
+            if not os.path.exists(f"{DOWNLOAD_PATH}/shorts"):
+                os.mkdir(f"{DOWNLOAD_PATH}/shorts")
         document.export(export_path, log_callback=self.check_errors,
                         size=("720" if not short else "1080-v"))
 
