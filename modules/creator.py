@@ -18,12 +18,15 @@ class Creator(threading.Thread):
         self.error_exporting = False
 
     def run(self):
+        sleep_time = 10
         while self.active:
             try:
                 self.task()
-                time.sleep(10)
+                sleep_time = max(int(sleep_time/2), 10)
             except:
-                Logger.log(f"```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
+                Logger.log(f"`Creator` thread: ```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
+                sleep_time *= 1.5
+            time.sleep(sleep_time)
 
     def task(self):
         self.error_exporting = False

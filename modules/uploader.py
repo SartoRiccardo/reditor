@@ -46,13 +46,16 @@ class Uploader(threading.Thread):
             self.last_loop -= timedelta(days=1)
 
     def run(self):
+        sleep_time = 10
         while self.active:
             try:
                 self.task()
                 self.task_shorts()
-                time.sleep(10)
+                sleep_time = max(sleep_time/2, 10)
             except:
-                print(traceback.format_exc())
+                Logger.log(f"`Uploader` thread:\n```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
+                sleep_time *= 1.5
+            time.sleep(sleep_time)
 
     def task(self):
         while datetime.now() < self.last_loop + timedelta(days=Uploader.UPLOAD_EVERY_DAYS) and \
