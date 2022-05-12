@@ -32,11 +32,11 @@ class Exporter(threading.Thread):
             try:
                 self.task_export_videos()
                 self.task_export_shorts()
-                time.sleep(sleep_time)
                 sleep_time = max(int(sleep_time/2), 10)
             except:
                 Logger.log(f"`Exporter` thread:\n```\n{traceback.format_exc()[:1900]}\n```", Logger.ERROR)
                 sleep_time *= 1.5
+            time.sleep(sleep_time)
 
     def task_export_videos(self):
         self.error_exporting = False
@@ -134,9 +134,9 @@ class Exporter(threading.Thread):
 
         _p, dirs, _f = next(os.walk(f"{DOWNLOAD_PATH}/shorts"))
         for d in dirs:
-            _p, _d, files = next(os.walk(f"{DOWNLOAD_PATH}/{d}"))
+            _p, _d, files = next(os.walk(f"{DOWNLOAD_PATH}/shorts/{d}"))
             if len(files) == 0:
-                os.rmdir(f"{DOWNLOAD_PATH}/{d}")
+                os.rmdir(f"{DOWNLOAD_PATH}/shorts/{d}")
             else:
                 ret.append(d.split("-")[0])
 
