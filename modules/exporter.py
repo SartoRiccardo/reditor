@@ -57,7 +57,7 @@ class Exporter(threading.Thread):
 
     def task_export_shorts(self):
         while (datetime.now() < self.shorts_last_loop + timedelta(seconds=Exporter.SHORTS_EXPORT_EVERY) or
-                len(Exporter.get_shorts_backlog()) > Exporter.SHORTS_MAX_EXPORTED_BACKLOG) and self.active:
+                len(Exporter.get_shorts_backlog()) >= Exporter.SHORTS_MAX_EXPORTED_BACKLOG) and self.active:
             return
 
         if not self.active:
@@ -80,7 +80,7 @@ class Exporter(threading.Thread):
         document = Document(video["document_id"])
         document.add_soundtracks(bgm_dir)
 
-        Logger.log(f"Exporting **{title}**", Logger.INFO)
+        Logger.log(f"Exporting **{title}** {short_str}", Logger.INFO)
         if not video["title"]:
             Logger.log(f"No title or thumbnail for **{video['thread_title']}** {short_str}", Logger.WARN)
 
