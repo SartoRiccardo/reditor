@@ -474,6 +474,8 @@ def get_caption_clips(t, text, video_size=SIZES["720"]):
 def get_reaction_clip(t, reaction, video_size=SIZES["720"]):
     reaction_path = os.path.join(REACTIONS_PATH, f"{reaction}.png")
     part_react = ImageClip(reaction_path).resize(height=int(0.5*video_size[1]))
+    if part_react.w > video_size[0]:
+        part_react = part_react.resize(width=video_size[0])
     part_react = part_react \
         .set_position((
             video_size[0] - part_react.w,

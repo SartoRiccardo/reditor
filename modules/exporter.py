@@ -41,7 +41,7 @@ class Exporter(threading.Thread):
     def task_export_videos(self):
         self.error_exporting = False
         while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.EXPORT_EVERY) or
-                len(Exporter.get_video_backlog()) > Exporter.MAX_EXPORTED_BACKLOG) and self.active:
+                len(Exporter.get_video_backlog()) >= Exporter.MAX_EXPORTED_BACKLOG) and self.active:
             return
 
         if not self.active:
