@@ -382,13 +382,19 @@ class Document:
 
         config = open(config_path)
         file = []
+        found = False
         for ln in config:
             parts = ln.strip().split(" ")
             if parts[0] == key:
-                file.append(f"{key} {value}\n")
+                found = True
+                if value is not None:
+                    file.append(f"{key} {value}\n")
             else:
                 file.append(ln)
         config.close()
+
+        if not found:
+            file.append(f"{key} {value}\n")
 
         config = open(config_path, "w")
         [config.write(ln) for ln in file]
@@ -468,3 +474,7 @@ class Document:
         fscript.close()
 
         self.has_intro = True
+
+    def set_background(self, path: str):
+        self.write_config("background", path)
+

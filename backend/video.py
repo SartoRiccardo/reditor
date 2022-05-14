@@ -114,7 +114,23 @@ def export_video(
 
     transition = VideoFileClip(backend.editor.DATA_PATH + "/assets/transition.mp4")
 
-    if os.path.exists(backend.editor.DATA_PATH + "/assets/background.mp4"):
+    # Get the path background for the video. Download if URL.
+    background_path = document.get_config("background")
+    if background_path is None:
+        background_path = backend.editor.DATA_PATH + "/assets/background.mp4"
+
+    is_url = "http" in background_path
+    if is_url:
+        background_path = backend.requests.download_resource(
+            background_path,
+            f"{document.get_cache_dir()}/background.mp4"
+        )
+
+    if os.path.exists(background_path) and background_path[-3:] == "mp4":
+        background = VideoFileClip(background_path). \
+            set_position(("center", "center")). \
+            loop()
+    elif os.path.exists(backend.editor.DATA_PATH + "/assets/background.mp4"):
         background = VideoFileClip(backend.editor.DATA_PATH + "/assets/background.mp4"). \
             set_position(("center", "center")). \
             loop()
@@ -261,6 +277,9 @@ def export_video(
     audio_clip.close()
     video.close()
     background.close()
+
+    if is_url:
+        os.remove(background_path)
 
     fsub = open(out_dir+"/subtitles.srt", "w")
     for i in range(len(subtitles)):
