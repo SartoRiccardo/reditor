@@ -17,8 +17,8 @@ class Uploader(threading.Thread):
     UPLOAD_HOUR = 21 - 2  # UTC+000, I live in UTC+002
     UPLOAD_MINUTE = 50
 
-    SHORT_UPLOAD_EVERY_DAYS = 2
-    SHORT_UPLOAD_HOUR = 9 - 2  # UTC+000, I live in UTC+002
+    SHORT_UPLOAD_EVERY_DAYS = 1
+    SHORT_UPLOAD_HOUR = 15 - 2  # UTC+000, I live in UTC+002
     SHORT_UPLOAD_MINUTE = 50
 
     def __init__(self):
