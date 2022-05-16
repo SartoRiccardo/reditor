@@ -36,7 +36,7 @@ class Uploader(threading.Thread):
                 second=0, microsecond=0
             )
         else:
-            self.last_loop = self.last_loop.replace(
+            self.short_last_loop = self.short_last_loop.replace(
                 hour=Uploader.SHORT_UPLOAD_HOUR,
                 minute=Uploader.SHORT_UPLOAD_MINUTE,
                 second=0, microsecond=0
@@ -75,12 +75,12 @@ class Uploader(threading.Thread):
         self.upload_video(to_upload, video_data)
 
     def task_shorts(self):
-        while datetime.now() < self.last_loop + timedelta(days=Uploader.SHORT_UPLOAD_EVERY_DAYS) and \
+        while datetime.now() < self.short_last_loop + timedelta(days=Uploader.SHORT_UPLOAD_EVERY_DAYS) and \
                 self.active:
             return
         if not self.active:
             return
-        self.last_loop = datetime.now()
+        self.short_last_loop = datetime.now()
         self.adjust_last_loop(shorts=True)
 
         shorts = self.get_uploadable_videos(shorts=True)
