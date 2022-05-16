@@ -26,6 +26,7 @@ class Uploader(threading.Thread):
         self.last_loop = datetime.now()
         self.short_last_loop = datetime.now()
         self.adjust_last_loop()
+        self.adjust_last_loop(shorts=True)
         self.active = True
 
     def adjust_last_loop(self, shorts=False):
@@ -35,15 +36,16 @@ class Uploader(threading.Thread):
                 minute=Uploader.UPLOAD_MINUTE,
                 second=0, microsecond=0
             )
+            if self.last_loop > datetime.now():
+                self.last_loop -= timedelta(days=1)
         else:
             self.short_last_loop = self.short_last_loop.replace(
                 hour=Uploader.SHORT_UPLOAD_HOUR,
                 minute=Uploader.SHORT_UPLOAD_MINUTE,
                 second=0, microsecond=0
             )
-
-        if self.last_loop > datetime.now():
-            self.last_loop -= timedelta(days=1)
+            if self.short_last_loop > datetime.now():
+                self.short_last_loop -= timedelta(days=1)
 
     def run(self):
         sleep_time = 10
@@ -58,10 +60,8 @@ class Uploader(threading.Thread):
             time.sleep(sleep_time)
 
     def task(self):
-        while datetime.now() < self.last_loop + timedelta(days=Uploader.UPLOAD_EVERY_DAYS) and \
-                self.active:
-            return
-        if not self.active:
+        while datetime.now() < self.last_loop + timedelta(days=Uploader.UPLOAD_EVERY_DAYS) or \
+                not self.active:
             return
         self.last_loop = datetime.now()
         self.adjust_last_loop()
@@ -75,10 +75,8 @@ class Uploader(threading.Thread):
         self.upload_video(to_upload, video_data)
 
     def task_shorts(self):
-        while datetime.now() < self.short_last_loop + timedelta(days=Uploader.SHORT_UPLOAD_EVERY_DAYS) and \
-                self.active:
-            return
-        if not self.active:
+        while datetime.now() < self.short_last_loop + timedelta(days=Uploader.SHORT_UPLOAD_EVERY_DAYS) or \
+                not self.active:
             return
         self.short_last_loop = datetime.now()
         self.adjust_last_loop(shorts=True)
