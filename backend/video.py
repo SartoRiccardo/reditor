@@ -160,7 +160,6 @@ def export_video(
     part_soundtrack = None
     temp_video_paths = []
     temp_video_durations = []
-    has_transitioned_once = False
 
     for i in range(len(document.script)):
         s = document.script[i]
@@ -172,7 +171,6 @@ def export_video(
 
         elif isinstance(s, classes.video.Transition):
             # Splits the file at every transition to avoid memory issues
-            has_transitioned_once = True
             if part_soundtrack:
                 part_start = part_soundtrack.start
                 part_end = t-SOUNDTRACK_FADE_TIME

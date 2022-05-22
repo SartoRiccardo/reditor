@@ -40,12 +40,11 @@ class Exporter(threading.Thread):
 
     def task_export_videos(self):
         self.error_exporting = False
-        while (datetime.now() < self.last_loop + timedelta(seconds=Exporter.EXPORT_EVERY) or
-                len(Exporter.get_video_backlog()) >= Exporter.MAX_EXPORTED_BACKLOG) and self.active:
+        while datetime.now() < self.last_loop + timedelta(seconds=Exporter.EXPORT_EVERY) or \
+                len(Exporter.get_video_backlog()) >= Exporter.MAX_EXPORTED_BACKLOG or \
+                not self.active:
             return
 
-        if not self.active:
-            return
         self.last_loop = datetime.now()
 
         videos = backend.database.get_videos(created=True)
@@ -57,12 +56,11 @@ class Exporter(threading.Thread):
 
     def task_export_shorts(self):
         while (datetime.now() < self.shorts_last_loop + timedelta(seconds=Exporter.SHORTS_EXPORT_EVERY) or
-                len(Exporter.get_shorts_backlog()) >= Exporter.SHORTS_MAX_EXPORTED_BACKLOG) and self.active:
+                len(Exporter.get_shorts_backlog()) >= Exporter.SHORTS_MAX_EXPORTED_BACKLOG) or \
+                not self.active:
             return
 
-        if not self.active:
-            return
-        self.last_loop = datetime.now()
+        self.shorts_last_loop = datetime.now()
 
         shorts = backend.database.get_videos(created=True, shorts=True)
         if len(shorts) == 0:

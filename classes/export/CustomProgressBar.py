@@ -4,7 +4,8 @@ from proglog import TqdmProgressBarLogger
 class CustomProgressBar(TqdmProgressBarLogger):
     def __init__(self, total_frames=0, gui_callback=None, fps=25):
         super().__init__(bars=None, ignored_bars=None, logged_bars='all',
-                         min_time_interval=0, ignore_bars_under=0)
+                         min_time_interval=0, ignore_bars_under=0,
+                         print_messages=False)
         self.total_frames = total_frames
         self.started_video = False
         self.gui_callback = gui_callback
