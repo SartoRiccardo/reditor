@@ -117,7 +117,7 @@ class Exporter(threading.Thread):
         _, dirs, __ = next(os.walk(DOWNLOAD_PATH))
         for d in dirs:
             _, __, files = next(os.walk(f"{DOWNLOAD_PATH}/{d}"))
-            if "shorts" in d:
+            if "-export" not in d:
                 continue
             if len(files) == 0:
                 os.rmdir(f"{DOWNLOAD_PATH}/{d}")

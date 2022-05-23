@@ -168,6 +168,7 @@ class Document:
         self.set_song(soundtrack_number, song_name, chosen_soundtrack, is_path=True)
 
         new_song_idxs = []
+        prev_scene = None
         for i in range(len(self.script)):
             s = self.script[i]
             if not isinstance(s, classes.video.Scene):
@@ -188,13 +189,14 @@ class Document:
                 duration = 0
                 new_song_idxs.append(i)  # Keep track of the index the song is supposed to be in
 
-                prev_scene = self.script[i-1]
-                part_to_change = prev_scene.script[-1]
-                part_to_change.wait = 4
-                prev_scene.change_part(len(prev_scene.script)-1, part_to_change)
+                if prev_scene is not None:
+                    part_to_change = prev_scene.script[-1]
+                    part_to_change.wait = 4
+                    prev_scene.change_part(len(prev_scene.script)-1, part_to_change)
 
             duration += s_len
             script_len += 1
+            prev_scene = s
 
         script_len += len(new_song_idxs)*2  # Each added item is a song + a transition
         # Puts songs in the correct places
