@@ -1,7 +1,7 @@
 from random import randint
 import re
 import backend
-from mutagen.mp3 import MP3
+from mutagen.mp3 import MP3, HeaderNotFoundError
 from moviepy.video.io.VideoFileClip import VideoFileClip
 from PIL import Image
 import os
@@ -142,9 +142,13 @@ def get_extension(path):
 
 def get_audio_length(path):
     if os.path.exists(path):
-        audio = MP3(path)
-        length = audio.info.length
-        return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
+        try:
+            audio = MP3(path)
+            length = audio.info.length
+            return {"m": int(length/60), "s": int(length % 60), "ms": length % 1, "total": length}
+        except HeaderNotFoundError as exc:
+            print(f"Audio file {path} is most likely corrupted.")
+            raise exc
     return {"m": 0, "s": 0, "ms": 0, "total": 0}
 
 

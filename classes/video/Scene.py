@@ -1,9 +1,12 @@
+import mutagen.mp3
+
 from classes.video.Part import Part
 from classes.video.ScriptComponent import ScriptComponent
 import classes.video
 import os
 import shutil
 import backend.utils
+import backend.video
 import traceback
 import base64
 
@@ -33,7 +36,10 @@ class Scene(ScriptComponent):
             if part.text:
                 aud_path = self.document.get_cache_dir() + f"/{self.id:05d}-{i:05d}.mp3"
                 if os.path.exists(aud_path):
-                    duration += backend.utils.get_audio_length(aud_path)["total"]
+                    try:
+                        duration += backend.utils.get_audio_length(aud_path)["total"]
+                    except mutagen.mp3.HeaderNotFoundError:
+                        os.remove(aud_path)
             duration += part.wait
 
         return duration
