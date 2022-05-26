@@ -28,7 +28,7 @@ html_template_post = None
 css_post = None
 html_template_comment = None
 css_comment = None
-video_voices_config = None
+video_voices_config = []
 
 
 def init():
@@ -94,8 +94,8 @@ def init_hti(tmp_dir, dl_dir):
 
 def init_voices_config():
     global video_voices_config
-    fin = open("video-voices.json")
-    video_voices_config = json.loads(fin.read())
+    fin = open("video-config.json")
+    video_voices_config = json.loads(fin.read())["voices"]
     fin.close()
 
 
@@ -104,7 +104,7 @@ def get_voice_for_scene():
         init_voices_config()
 
     chances = []
-    for voice in video_voices_config["voices"]:
+    for voice in video_voices_config:
         chances += [voice["name"]] * voice["weight"]
     return random.choice(chances)
 

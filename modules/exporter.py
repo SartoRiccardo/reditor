@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from random import randint
@@ -17,7 +18,7 @@ class Exporter(threading.Thread):
     EXPORT_EVERY = 60*60*12
     SHORTS_EXPORT_EVERY = 60*60*12
     MAX_EXPORTED_BACKLOG = 1
-    SHORTS_MAX_EXPORTED_BACKLOG = 3
+    SHORTS_MAX_EXPORTED_BACKLOG = 10
 
     def __init__(self):
         super().__init__()
@@ -67,10 +68,18 @@ class Exporter(threading.Thread):
             return
 
         chosen = Exporter.choose_video(shorts)
-        self.export_video(chosen, short=True)
+        self.export_video(chosen, video_type="short")
 
-    def export_video(self, video, short=False):
-        short_str = "*__#short__*" if short else ""
+        document = Document(chosen["document_id"])
+        document.set_background(self.get_random_video_background())
+        self.export_video(chosen, video_type="tiktok")
+
+    def export_video(self, video, video_type=None):
+        short_str = ""
+        if video_type == "tiktok":
+            short_str = "__*for TikTok*__"
+        elif video_type == "short":
+            short_str = "__*#short*__"
 
         title = video["title"] if video["title"] else video["thread_title"]
         Logger.log(f"Adding soundtracks for **{title}** {short_str}", Logger.DEBUG)
@@ -87,18 +96,25 @@ class Exporter(threading.Thread):
         if not os.path.exists(DOWNLOAD_PATH):
             os.mkdir(DOWNLOAD_PATH)
         export_path = f"{DOWNLOAD_PATH}/{document.name}-export"
-        if short:
-            export_path = f"{DOWNLOAD_PATH}/shorts/{document.name}-export"
-            if not os.path.exists(f"{DOWNLOAD_PATH}/shorts"):
-                os.mkdir(f"{DOWNLOAD_PATH}/shorts")
+        if video_type == "short":
+            export_path = self.special_export_path("shorts", document)
+        elif video_type == "tiktok":
+            export_path = self.special_export_path("tiktoks", document)
         document.export(export_path, log_callback=self.check_errors,
-                        size=("720" if not short else "1080-v"))
+                        size=("1080-v" if video_type in ["tiktok", "short"] else "720"))
 
         if not self.error_exporting:
             backend.database.confirm_export(video["thread"])
         document.delete()
         Logger.log(f"Exported **{title}** {short_str}", Logger.SUCCESS)
         gc.collect()
+
+    @staticmethod
+    def special_export_path(subdir, document):
+        export_path = f"{DOWNLOAD_PATH}/{subdir}/{document.name}-export"
+        if not os.path.exists(f"{DOWNLOAD_PATH}/{subdir}"):
+            os.mkdir(f"{DOWNLOAD_PATH}/{subdir}")
+        return export_path
 
     def stop(self):
         self.active = False
@@ -162,3 +178,11 @@ class Exporter(threading.Thread):
         else:
             Logger.log("No videos currently have title/thumbnail set!", Logger.WARN)
         return videos[randint(0, len(videos)-1)]
+
+    @staticmethod
+    def get_random_video_background():
+        fconfig = open("video-config.json")
+        backgrounds = json.loads(fconfig.read())["backgrounds"]
+        chosen = backgrounds[randint(0, len(backgrounds)-1)]
+        fconfig.close()
+        return chosen
