@@ -68,13 +68,13 @@ class Exporter(threading.Thread):
         self.shorts_last_loop = datetime.now()
 
         chosen = Exporter.choose_video(shorts)
-        self.export_video(chosen, video_type="short")
+        self.export_video(chosen, video_type="short", delete_afterwards=False)
 
         document = Document(chosen["document_id"])
         document.set_background(self.get_random_video_background())
         self.export_video(chosen, video_type="tiktok")
 
-    def export_video(self, video, video_type=None):
+    def export_video(self, video, video_type=None, delete_afterwards=True):
         short_str = ""
         if video_type == "tiktok":
             short_str = "__*for TikTok*__"
@@ -105,7 +105,8 @@ class Exporter(threading.Thread):
 
         if not self.error_exporting:
             backend.database.confirm_export(video["thread"])
-        document.delete()
+        if delete_afterwards:
+            document.delete()
         Logger.log(f"Exported **{title}** {short_str}", Logger.SUCCESS)
         gc.collect()
 
